@@ -2,10 +2,11 @@
 
 out vec4 outColor;
 
-// TODO: Only for testing
-in vec3 color;
+in vec2 texCoord;
+
+uniform sampler2D tex;
 
 void main()
 {
-    outColor = vec4(color, 1.0f);
+    outColor = texture(tex, texCoord);
 }

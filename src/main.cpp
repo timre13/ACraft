@@ -1,6 +1,7 @@
 #include "glstuff.h"
-#include "ShaderProg.h"
 #include "Logger.h"
+#include "ShaderProg.h"
+#include "Texture.h"
 #include <iomanip>
 
 #define WIN_W 1500
@@ -93,42 +94,47 @@ static void _keyCb(GLFWwindow* win, int key, int scancode, int action, int mods)
 static constexpr float cubeVertices[CUBE_VERT_DATA_LEN] = {
     //       Mesh              Texture
     // X      Y      Z          X     Y
-    -1.0f,  1.0f, -1.0f, /**/ 0.0f, 0.0f,
-     1.0f,  1.0f,  1.0f, /**/ 0.0f, 0.0f,
-     1.0f,  1.0f, -1.0f, /**/ 0.0f, 0.0f,
-     1.0f,  1.0f,  1.0f, /**/ 0.0f, 0.0f,
-    -1.0f, -1.0f,  1.0f, /**/ 0.0f, 0.0f,
-     1.0f, -1.0f,  1.0f, /**/ 0.0f, 0.0f,
-    -1.0f,  1.0f,  1.0f, /**/ 0.0f, 0.0f,
     -1.0f, -1.0f, -1.0f, /**/ 0.0f, 0.0f,
-    -1.0f, -1.0f,  1.0f, /**/ 0.0f, 0.0f,
-     1.0f, -1.0f, -1.0f, /**/ 0.0f, 0.0f,
-    -1.0f, -1.0f,  1.0f, /**/ 0.0f, 0.0f,
+     1.0f, -1.0f, -1.0f, /**/ 1.0f, 0.0f,
+     1.0f,  1.0f, -1.0f, /**/ 1.0f, 1.0f,
+     1.0f,  1.0f, -1.0f, /**/ 1.0f, 1.0f,
+    -1.0f,  1.0f, -1.0f, /**/ 0.0f, 1.0f,
     -1.0f, -1.0f, -1.0f, /**/ 0.0f, 0.0f,
-     1.0f,  1.0f, -1.0f, /**/ 0.0f, 0.0f,
-     1.0f, -1.0f,  1.0f, /**/ 0.0f, 0.0f,
-     1.0f, -1.0f, -1.0f, /**/ 0.0f, 0.0f,
-    -1.0f,  1.0f, -1.0f, /**/ 0.0f, 0.0f,
-     1.0f, -1.0f, -1.0f, /**/ 0.0f, 0.0f,
-    -1.0f, -1.0f, -1.0f, /**/ 0.0f, 0.0f,
-    -1.0f,  1.0f, -1.0f, /**/ 0.0f, 0.0f,
-    -1.0f,  1.0f,  1.0f, /**/ 0.0f, 0.0f,
-     1.0f,  1.0f,  1.0f, /**/ 0.0f, 0.0f,
-     1.0f,  1.0f,  1.0f, /**/ 0.0f, 0.0f,
-    -1.0f,  1.0f,  1.0f, /**/ 0.0f, 0.0f,
+
     -1.0f, -1.0f,  1.0f, /**/ 0.0f, 0.0f,
-    -1.0f,  1.0f,  1.0f, /**/ 0.0f, 0.0f,
-    -1.0f,  1.0f, -1.0f, /**/ 0.0f, 0.0f,
-    -1.0f, -1.0f, -1.0f, /**/ 0.0f, 0.0f,
-     1.0f, -1.0f, -1.0f, /**/ 0.0f, 0.0f,
-     1.0f, -1.0f,  1.0f, /**/ 0.0f, 0.0f,
+     1.0f, -1.0f,  1.0f, /**/ 1.0f, 0.0f,
+     1.0f,  1.0f,  1.0f, /**/ 1.0f, 1.0f,
+     1.0f,  1.0f,  1.0f, /**/ 1.0f, 1.0f,
+    -1.0f,  1.0f,  1.0f, /**/ 0.0f, 1.0f,
     -1.0f, -1.0f,  1.0f, /**/ 0.0f, 0.0f,
-     1.0f,  1.0f, -1.0f, /**/ 0.0f, 0.0f,
-     1.0f,  1.0f,  1.0f, /**/ 0.0f, 0.0f,
+
+    -1.0f,  1.0f,  1.0f, /**/ 1.0f, 0.0f,
+    -1.0f,  1.0f, -1.0f, /**/ 1.0f, 1.0f,
+    -1.0f, -1.0f, -1.0f, /**/ 0.0f, 1.0f,
+    -1.0f, -1.0f, -1.0f, /**/ 0.0f, 1.0f,
+    -1.0f, -1.0f,  1.0f, /**/ 0.0f, 0.0f,
+    -1.0f,  1.0f,  1.0f, /**/ 1.0f, 0.0f,
+
+     1.0f,  1.0f,  1.0f, /**/ 1.0f, 0.0f,
+     1.0f,  1.0f, -1.0f, /**/ 1.0f, 1.0f,
+     1.0f, -1.0f, -1.0f, /**/ 0.0f, 1.0f,
+     1.0f, -1.0f, -1.0f, /**/ 0.0f, 1.0f,
      1.0f, -1.0f,  1.0f, /**/ 0.0f, 0.0f,
-    -1.0f,  1.0f, -1.0f, /**/ 0.0f, 0.0f,
-     1.0f,  1.0f, -1.0f, /**/ 0.0f, 0.0f,
-     1.0f, -1.0f, -1.0f, /**/ 0.0f, 0.0f,
+     1.0f,  1.0f,  1.0f, /**/ 1.0f, 0.0f,
+
+    -1.0f, -1.0f, -1.0f, /**/ 0.0f, 1.0f,
+     1.0f, -1.0f, -1.0f, /**/ 1.0f, 1.0f,
+     1.0f, -1.0f,  1.0f, /**/ 1.0f, 0.0f,
+     1.0f, -1.0f,  1.0f, /**/ 1.0f, 0.0f,
+    -1.0f, -1.0f,  1.0f, /**/ 0.0f, 0.0f,
+    -1.0f, -1.0f, -1.0f, /**/ 0.0f, 1.0f,
+
+    -1.0f,  1.0f, -1.0f, /**/ 0.0f, 1.0f,
+     1.0f,  1.0f, -1.0f, /**/ 1.0f, 1.0f,
+     1.0f,  1.0f,  1.0f, /**/ 1.0f, 0.0f,
+     1.0f,  1.0f,  1.0f, /**/ 1.0f, 0.0f,
+    -1.0f,  1.0f,  1.0f, /**/ 0.0f, 0.0f,
+    -1.0f,  1.0f, -1.0f, /**/ 0.0f, 1.0f
 };
 
 int main()
@@ -169,7 +175,7 @@ int main()
 
     //----------------------------------------------------------------------
 
-    //glEnable(GL_DEPTH_TEST);
+    glEnable(GL_DEPTH_TEST);
     glEnable(GL_DEBUG_OUTPUT);
     glDebugMessageCallback(_glMsgCb, 0);
 
@@ -198,6 +204,8 @@ int main()
 
     //----------------------------------------------------------------------
 
+    Texture tex = Texture{"../textures/dirt.png"};
+
     glfwSwapInterval(1); // Force V-Sync
     while (!glfwWindowShouldClose(window))
     {
@@ -207,9 +215,9 @@ int main()
         glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
 
         mainShaderProg.bind();
-
+        tex.bind();
         glBindVertexArray(cubeVao);
-        glDrawArrays(GL_TRIANGLE_FAN, 0, CUBE_VERT_COUNT);
+        glDrawArrays(GL_TRIANGLES, 0, CUBE_VERT_COUNT);
 
         glfwSwapBuffers(window);
     }

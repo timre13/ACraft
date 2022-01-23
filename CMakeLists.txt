@@ -9,12 +9,7 @@ set(CMAKE_CXX_STANDARD_REQUIRED true)
 
 set(CMAKE_EXPORT_COMPILE_COMMANDS true)
 
-include_directories(
-    /usr/include/freetype2
-)
-
-link_libraries(GLEW GL glfw freetype)
-
+link_libraries(GLEW GL glfw)
 
 set(CMAKE_CXX_FLAGS "-Wall -Wextra -Wpedantic -Werror=return-type -g3 -pthread")
 #set(CMAKE_CXX_FLAGS "-Wall -Wextra -Wpedantic -Werror=return-type -Weffc++ -g3 -pthread")
@@ -37,4 +32,5 @@ add_executable(acraft
     src/main.cpp
     src/Logger.cpp
     src/ShaderProg.cpp
+    src/Texture.cpp
 )
