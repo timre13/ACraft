@@ -6,6 +6,8 @@
 #define WIN_W 1500
 #define WIN_H 1000
 
+bool g_isWireframeMode = false;
+
 static void _glfwErrCb(int err, const char* desc)
 {
     Logger::fatal << "GLFW Error: " << std::hex << err << std::dec << ": " << desc << Logger::End;
@@ -66,6 +68,23 @@ static void _windowResizeCb(GLFWwindow*, int width, int height)
     //Logger::dbg << "Resized window to " << width << 'x' << height << Logger::End;
 }
 
+static void toggleWireframeMode()
+{
+    g_isWireframeMode = !g_isWireframeMode;
+    glPolygonMode(GL_FRONT_AND_BACK, g_isWireframeMode ? GL_LINE : GL_FILL);
+}
+
+static void _keyCb(GLFWwindow* win, int key, int scancode, int action, int mods)
+{
+    (void)win;
+    (void)scancode;
+
+    if (action == GLFW_PRESS && mods == 0 && key == GLFW_KEY_F3)
+    {
+        toggleWireframeMode();
+    }
+}
+
 #define VERT_ATTRIB_INDEX_MESH_COORDS 0
 #define VERT_ATTRIB_INDEX_TEX_COORDS 1
 #define CUBE_VERT_COUNT 36
@@ -122,6 +141,7 @@ int main()
     GLFWwindow* window = glfwCreateWindow(WIN_W, WIN_H, "ACraft", NULL, NULL);
     glfwSetWindowCloseCallback(window, _windowCloseCb);
     glfwSetWindowSizeCallback(window, _windowResizeCb);
+    glfwSetKeyCallback(window, _keyCb);
     glfwMakeContextCurrent(window);
 
     glewExperimental = true;
@@ -152,8 +172,6 @@ int main()
     //glEnable(GL_DEPTH_TEST);
     glEnable(GL_DEBUG_OUTPUT);
     glDebugMessageCallback(_glMsgCb, 0);
-
-    // TODO: Wireframe mode keybinding
 
     //----------------------------------------------------------------------
 
