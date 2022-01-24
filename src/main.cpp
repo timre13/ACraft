@@ -3,6 +3,8 @@
 #include "ShaderProg.h"
 #include "Texture.h"
 #include <iomanip>
+#include <glm/gtc/matrix_transform.hpp>
+#include <glm/gtc/type_ptr.hpp>
 
 #define WIN_W 1500
 #define WIN_H 1000
@@ -214,7 +216,16 @@ int main()
         glClearColor(0.0f, 0.5f, 0.5f, 1.0f);
         glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
 
+        auto modelMat = glm::mat4(1.0f);
+        modelMat = glm::rotate(modelMat, glm::radians(45.0f), glm::vec3(1.0f, 1.0f, 0.0f));
+        auto viewMat = glm::mat4(1.0f);
+        viewMat = glm::translate(viewMat, glm::vec3(0.0, 0.0f, -10.0f));
+        auto projMat = glm::perspective(glm::radians(45.0f), (float)WIN_W/WIN_H, 0.1f, 100.0f);
+
         mainShaderProg.bind();
+        mainShaderProg.setUniform("inModelMat", modelMat);
+        mainShaderProg.setUniform("inViewMat", viewMat);
+        mainShaderProg.setUniform("inProjMat", projMat);
         tex.bind();
         glBindVertexArray(cubeVao);
         glDrawArrays(GL_TRIANGLES, 0, CUBE_VERT_COUNT);

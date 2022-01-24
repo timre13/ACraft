@@ -1,8 +1,17 @@
 #include "ShaderProg.h"
 #include "common.h"
-#include "glstuff.h"
 
 uint ShaderProg::s_boundProgId = -1;
+
+int ShaderProg::getUniformLocation(const char* name) const
+{
+    int loc = glGetUniformLocation(m_progId, name);
+    if (loc == -1)
+    {
+        Logger::fatal << "Failed to get location of uniform: \"" << name << "\" in program: " << m_progId << Logger::End; 
+    }
+    return loc;
+}
 
 static uint setupShader(const std::string& path, bool isVert)
 {
@@ -84,6 +93,12 @@ void ShaderProg::bind()
         glUseProgram(m_progId);
         s_boundProgId = m_progId;
     }
+}
+
+void ShaderProg::setUniform(const char* name, const glm::mat4& x)
+{
+    bind();
+    glUniformMatrix4fv(getUniformLocation(name), 1, GL_FALSE, glm::value_ptr(x));
 }
 
 ShaderProg::~ShaderProg()
