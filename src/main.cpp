@@ -4,6 +4,7 @@
 #include "Texture.h"
 #include "Camera.h"
 #include <iomanip>
+#include <vector>
 #include <glm/gtc/matrix_transform.hpp>
 #include <glm/gtc/type_ptr.hpp>
 
@@ -106,6 +107,10 @@ static void _mouseMoveCb(GLFWwindow* window, double x, double y)
 
 #define VERT_ATTRIB_INDEX_MESH_COORDS 0
 #define VERT_ATTRIB_INDEX_TEX_COORDS 1
+#define VERT_ATTRIB_INDEX_INST_MAT_0 2
+#define VERT_ATTRIB_INDEX_INST_MAT_1 3
+#define VERT_ATTRIB_INDEX_INST_MAT_2 4
+#define VERT_ATTRIB_INDEX_INST_MAT_3 5
 #define CUBE_VERT_COUNT 36
 #define CUBE_VALS_PER_VERT 5
 #define CUBE_VERT_DATA_LEN (CUBE_VERT_COUNT * CUBE_VALS_PER_VERT)
@@ -154,7 +159,7 @@ static constexpr float cubeVertices[CUBE_VERT_DATA_LEN] = {
     -1.0f,  1.0f,  1.0f, /**/ 0.0f, 0.0f,
     -1.0f,  1.0f, -1.0f, /**/ 0.0f, 1.0f
 };
-#define BLOCK_MODEL_SIZE 0.5f
+#define BLOCK_MODEL_SCALE 0.5f
 
 int main()
 {
@@ -199,7 +204,7 @@ int main()
     glEnable(GL_DEPTH_TEST);
     glEnable(GL_DEBUG_OUTPUT);
     glDebugMessageCallback(_glMsgCb, 0);
-    glLineWidth(5); // Line width when drawing polygons as lines (wireframe mode)
+    glLineWidth(2); // Line width when drawing polygons as lines (wireframe mode)
 
     //----------------------------------------------------------------------
 
@@ -207,42 +212,73 @@ int main()
 
     //----------------------------------------------------------------------
 
+    std::vector<glm::vec3> blockPositions{};
+    for (int i{}; i < 10000; ++i)
+    {
+        blockPositions.push_back({i/100, 0.0f, i%100});
+    }
+    std::vector<glm::mat4> blockMatrices{};
+    for (int i{}; i < blockPositions.size(); ++i)
+    {
+        auto mat = glm::mat4(1.0f);
+        mat = glm::translate(mat, {blockPositions[i]});
+        mat = glm::scale(mat, {BLOCK_MODEL_SCALE, BLOCK_MODEL_SCALE, BLOCK_MODEL_SCALE});
+        blockMatrices.push_back(mat);
+    }
+
+    //----------------------------------------------------------------------
+
     uint cubeVao{};
     glGenVertexArrays(1, &cubeVao);
     glBindVertexArray(cubeVao);
+
     uint cubeVbo{};
+    uint instancedVbo{};
     {
         glGenBuffers(1, &cubeVbo);
+
         glBindBuffer(GL_ARRAY_BUFFER, cubeVbo);
         glBufferData(GL_ARRAY_BUFFER, CUBE_VERT_DATA_LEN*sizeof(float), &cubeVertices, GL_STATIC_DRAW);
-        
+
         glVertexAttribPointer(VERT_ATTRIB_INDEX_MESH_COORDS, 3, GL_FLOAT, GL_FALSE, CUBE_VALS_PER_VERT*sizeof(float), (void*)(0));
         glEnableVertexAttribArray(VERT_ATTRIB_INDEX_MESH_COORDS);
-        
+
         glVertexAttribPointer(VERT_ATTRIB_INDEX_TEX_COORDS, 2, GL_FLOAT, GL_FALSE, CUBE_VALS_PER_VERT*sizeof(float), (void*)(3*sizeof(float)));
         glEnableVertexAttribArray(VERT_ATTRIB_INDEX_TEX_COORDS);
+
+        //----------------------------------------------------------------------
+
+        glGenBuffers(1, &instancedVbo);
+
+        glBindBuffer(GL_ARRAY_BUFFER, instancedVbo);
+        glBufferData(GL_ARRAY_BUFFER, blockMatrices.size()*sizeof(glm::mat4), blockMatrices.data(), GL_STATIC_DRAW);
+
+        glVertexAttribPointer(VERT_ATTRIB_INDEX_INST_MAT_0, 4, GL_FLOAT, GL_FALSE, sizeof(glm::mat4), (void*)(0*sizeof(glm::vec4)));
+        glEnableVertexAttribArray(VERT_ATTRIB_INDEX_INST_MAT_0);
+        glVertexAttribDivisor(VERT_ATTRIB_INDEX_INST_MAT_0, 1); // Instanced attribute
+
+        glVertexAttribPointer(VERT_ATTRIB_INDEX_INST_MAT_1, 4, GL_FLOAT, GL_FALSE, sizeof(glm::mat4), (void*)(1*sizeof(glm::vec4)));
+        glEnableVertexAttribArray(VERT_ATTRIB_INDEX_INST_MAT_1);
+        glVertexAttribDivisor(VERT_ATTRIB_INDEX_INST_MAT_1, 1); // Instanced attribute
+
+        glVertexAttribPointer(VERT_ATTRIB_INDEX_INST_MAT_2, 4, GL_FLOAT, GL_FALSE, sizeof(glm::mat4), (void*)(2*sizeof(glm::vec4)));
+        glEnableVertexAttribArray(VERT_ATTRIB_INDEX_INST_MAT_2);
+        glVertexAttribDivisor(VERT_ATTRIB_INDEX_INST_MAT_2, 1); // Instanced attribute
+
+        glVertexAttribPointer(VERT_ATTRIB_INDEX_INST_MAT_3, 4, GL_FLOAT, GL_FALSE, sizeof(glm::mat4), (void*)(3*sizeof(glm::vec4)));
+        glEnableVertexAttribArray(VERT_ATTRIB_INDEX_INST_MAT_3);
+        glVertexAttribDivisor(VERT_ATTRIB_INDEX_INST_MAT_3, 1); // Instanced attribute
     }
     glBindVertexArray(0);
 
     //----------------------------------------------------------------------
 
-    Texture playeholderTex = Texture{"../textures/placeholder.png"};
     Texture cobbleStoneTex = Texture{"../textures/cobblestone.png"};
 
     //----------------------------------------------------------------------
 
-#define BLOCK_POS_COUNT 6
-    glm::vec3 blockPositions[BLOCK_POS_COUNT] = {
-        {5, 0, -10},
-        {5, 0, 0},
-        {10, 5, 2},
-        {-10, -1, 0},
-        {-1, 10, 5},
-        {4, -4, 8},
-    };
-
     Camera cam{(float)WIN_W/WIN_H, CAM_FOV_DEG};
-    cam.setPos({0.0f, 0.0f, 0.0f});
+    cam.setPos({0.0f, 5.0f, 0.0f});
 
     double lastTime{};
     glfwSwapInterval(1); // Force V-Sync
@@ -296,30 +332,16 @@ int main()
         glBindVertexArray(cubeVao);
         mainShaderProg.bind();
         cam.updateShaderUniforms(mainShaderProg);
-        playeholderTex.bind();
-        {
-            auto modelMat = glm::mat4(1.0f);
-            modelMat = glm::translate(modelMat, {-100.0f, -10.0f, -100.0f});
-            modelMat = glm::scale(modelMat, {100.0f, 0.1f, 100.0f});
-
-            mainShaderProg.setUniform("inModelMat", modelMat);
-            glDrawArrays(GL_TRIANGLES, 0, CUBE_VERT_COUNT);
-        }
         cobbleStoneTex.bind();
-        for (int i{}; i < BLOCK_POS_COUNT; ++i)
-        {
-            auto modelMat = glm::mat4(1.0f);
-            modelMat = glm::scale(modelMat, {BLOCK_MODEL_SIZE, BLOCK_MODEL_SIZE, BLOCK_MODEL_SIZE});
-            modelMat = glm::translate(modelMat, blockPositions[i]);
-
-            mainShaderProg.setUniform("inModelMat", modelMat);
-            glDrawArrays(GL_TRIANGLES, 0, CUBE_VERT_COUNT);
-        }
+        glDrawArraysInstanced(GL_TRIANGLES, 0, CUBE_VERT_COUNT, blockPositions.size());
 
         glfwSwapBuffers(window);
     }
 
     Logger::log << "Cleaning up" << Logger::End;
+    glDeleteBuffers(1, &cubeVbo);
+    glDeleteBuffers(1, &instancedVbo);
+    glDeleteVertexArrays(1, &cubeVao);
     glfwDestroyWindow(window);
     glfwTerminate();
     return 0;

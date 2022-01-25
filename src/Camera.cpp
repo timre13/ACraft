@@ -92,6 +92,6 @@ void Camera::updateShaderUniforms(ShaderProg& shader)
     auto viewMat = glm::lookAt(m_pos, m_pos+m_frontVec, {0.0f, 1.0f, 0.0f});
     shader.setUniform("inViewMat", viewMat);
 
-    auto projMat = glm::perspective(glm::radians(m_fovDeg), m_winAspectRatio, 0.1f, 10000.0f);
+    auto projMat = glm::perspective(glm::radians(m_fovDeg), m_winAspectRatio, 0.1f, 100.0f);
     shader.setUniform("inProjMat", projMat);
 }
