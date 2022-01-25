@@ -33,4 +33,5 @@ add_executable(acraft
     src/Logger.cpp
     src/ShaderProg.cpp
     src/Texture.cpp
+    src/Camera.cpp
 )

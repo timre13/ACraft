@@ -2,14 +2,19 @@
 #include "Logger.h"
 #include "ShaderProg.h"
 #include "Texture.h"
+#include "Camera.h"
 #include <iomanip>
 #include <glm/gtc/matrix_transform.hpp>
 #include <glm/gtc/type_ptr.hpp>
 
 #define WIN_W 1500
 #define WIN_H 1000
+#define CAM_SPEED 0.01f
+#define CAM_FOV_DEG 45.0f
 
 bool g_isWireframeMode = false;
+int g_cursRelativeX = 0;
+int g_cursRelativeY = 0;
 
 static void _glfwErrCb(int err, const char* desc)
 {
@@ -88,6 +93,17 @@ static void _keyCb(GLFWwindow* win, int key, int scancode, int action, int mods)
     }
 }
 
+static void _mouseMoveCb(GLFWwindow* window, double x, double y)
+{
+    static double cursLastX = x;
+    static double cursLastY = y;
+
+    g_cursRelativeX = x - cursLastX;
+    g_cursRelativeY = cursLastY - y;
+    cursLastX = x;
+    cursLastY = y;
+}
+
 #define VERT_ATTRIB_INDEX_MESH_COORDS 0
 #define VERT_ATTRIB_INDEX_TEX_COORDS 1
 #define CUBE_VERT_COUNT 36
@@ -138,6 +154,7 @@ static constexpr float cubeVertices[CUBE_VERT_DATA_LEN] = {
     -1.0f,  1.0f,  1.0f, /**/ 0.0f, 0.0f,
     -1.0f,  1.0f, -1.0f, /**/ 0.0f, 1.0f
 };
+#define BLOCK_MODEL_SIZE 0.5f
 
 int main()
 {
@@ -150,6 +167,8 @@ int main()
     glfwSetWindowCloseCallback(window, _windowCloseCb);
     glfwSetWindowSizeCallback(window, _windowResizeCb);
     glfwSetKeyCallback(window, _keyCb);
+    glfwSetCursorPosCallback(window, _mouseMoveCb);
+    glfwSetInputMode(window, GLFW_CURSOR, GLFW_CURSOR_DISABLED);
     glfwMakeContextCurrent(window);
 
     glewExperimental = true;
@@ -180,6 +199,7 @@ int main()
     glEnable(GL_DEPTH_TEST);
     glEnable(GL_DEBUG_OUTPUT);
     glDebugMessageCallback(_glMsgCb, 0);
+    glLineWidth(5); // Line width when drawing polygons as lines (wireframe mode)
 
     //----------------------------------------------------------------------
 
@@ -206,29 +226,95 @@ int main()
 
     //----------------------------------------------------------------------
 
-    Texture tex = Texture{"../textures/dirt.png"};
+    Texture playeholderTex = Texture{"../textures/placeholder.png"};
+    Texture cobbleStoneTex = Texture{"../textures/cobblestone.png"};
 
+    //----------------------------------------------------------------------
+
+#define BLOCK_POS_COUNT 6
+    glm::vec3 blockPositions[BLOCK_POS_COUNT] = {
+        {5, 0, -10},
+        {5, 0, 0},
+        {10, 5, 2},
+        {-10, -1, 0},
+        {-1, 10, 5},
+        {4, -4, 8},
+    };
+
+    Camera cam{(float)WIN_W/WIN_H, CAM_FOV_DEG};
+    cam.setPos({0.0f, 0.0f, 0.0f});
+
+    double lastTime{};
     glfwSwapInterval(1); // Force V-Sync
     while (!glfwWindowShouldClose(window))
     {
+        const double currTime = glfwGetTime()*1000;
+        const double deltaTime = currTime - lastTime;
+        lastTime = currTime;
+
         glfwPollEvents();
+
+        if (glfwGetKey(window, GLFW_KEY_W) == GLFW_PRESS)
+        {
+            cam.moveForward(CAM_SPEED, deltaTime);
+        }
+        if (glfwGetKey(window, GLFW_KEY_S) == GLFW_PRESS)
+        {
+            cam.moveBackwards(CAM_SPEED, deltaTime);
+        }
+        if (glfwGetKey(window, GLFW_KEY_A) == GLFW_PRESS)
+        {
+            cam.moveLeft(CAM_SPEED, deltaTime);
+        }
+        if (glfwGetKey(window, GLFW_KEY_D) == GLFW_PRESS)
+        {
+            cam.moveRight(CAM_SPEED, deltaTime);
+        }
+        if (glfwGetKey(window, GLFW_KEY_SPACE) == GLFW_PRESS)
+        {
+            cam.moveUp(CAM_SPEED, deltaTime);
+        }
+        if (glfwGetKey(window, GLFW_KEY_LEFT_SHIFT) == GLFW_PRESS)
+        {
+            cam.moveDown(CAM_SPEED, deltaTime);
+        }
 
         glClearColor(0.0f, 0.5f, 0.5f, 1.0f);
         glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
 
-        auto modelMat = glm::mat4(1.0f);
-        modelMat = glm::rotate(modelMat, glm::radians(45.0f), glm::vec3(1.0f, 1.0f, 0.0f));
-        auto viewMat = glm::mat4(1.0f);
-        viewMat = glm::translate(viewMat, glm::vec3(0.0, 0.0f, -10.0f));
-        auto projMat = glm::perspective(glm::radians(45.0f), (float)WIN_W/WIN_H, 0.1f, 100.0f);
+        if (g_cursRelativeX)
+        {
+            cam.rotateHorizontallyDeg(g_cursRelativeX/10.0f);
+            g_cursRelativeX = 0;
+        }
+        if (g_cursRelativeY)
+        {
+            cam.rotateVerticallyDeg(g_cursRelativeY/10.0f);
+            g_cursRelativeY = 0;
+        }
 
-        mainShaderProg.bind();
-        mainShaderProg.setUniform("inModelMat", modelMat);
-        mainShaderProg.setUniform("inViewMat", viewMat);
-        mainShaderProg.setUniform("inProjMat", projMat);
-        tex.bind();
         glBindVertexArray(cubeVao);
-        glDrawArrays(GL_TRIANGLES, 0, CUBE_VERT_COUNT);
+        mainShaderProg.bind();
+        cam.updateShaderUniforms(mainShaderProg);
+        playeholderTex.bind();
+        {
+            auto modelMat = glm::mat4(1.0f);
+            modelMat = glm::translate(modelMat, {-100.0f, -10.0f, -100.0f});
+            modelMat = glm::scale(modelMat, {100.0f, 0.1f, 100.0f});
+
+            mainShaderProg.setUniform("inModelMat", modelMat);
+            glDrawArrays(GL_TRIANGLES, 0, CUBE_VERT_COUNT);
+        }
+        cobbleStoneTex.bind();
+        for (int i{}; i < BLOCK_POS_COUNT; ++i)
+        {
+            auto modelMat = glm::mat4(1.0f);
+            modelMat = glm::scale(modelMat, {BLOCK_MODEL_SIZE, BLOCK_MODEL_SIZE, BLOCK_MODEL_SIZE});
+            modelMat = glm::translate(modelMat, blockPositions[i]);
+
+            mainShaderProg.setUniform("inModelMat", modelMat);
+            glDrawArrays(GL_TRIANGLES, 0, CUBE_VERT_COUNT);
+        }
 
         glfwSwapBuffers(window);
     }
