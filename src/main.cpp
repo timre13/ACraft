@@ -16,6 +16,7 @@
 bool g_isWireframeMode = false;
 int g_cursRelativeX = 0;
 int g_cursRelativeY = 0;
+Camera g_camera = Camera{(float)WIN_W/WIN_H, CAM_FOV_DEG};
 
 static void _glfwErrCb(int err, const char* desc)
 {
@@ -75,6 +76,7 @@ static void _windowResizeCb(GLFWwindow*, int width, int height)
 {
     glViewport(0, 0, width, height);
     //Logger::dbg << "Resized window to " << width << 'x' << height << Logger::End;
+    g_camera.setWinAspectRatio((float)width/height);
 }
 
 static void toggleWireframeMode()
@@ -94,7 +96,7 @@ static void _keyCb(GLFWwindow* win, int key, int scancode, int action, int mods)
     }
 }
 
-static void _mouseMoveCb(GLFWwindow* window, double x, double y)
+static void _mouseMoveCb(GLFWwindow*, double x, double y)
 {
     static double cursLastX = x;
     static double cursLastY = y;
@@ -259,8 +261,7 @@ int main()
 
     //----------------------------------------------------------------------
 
-    Camera cam{(float)WIN_W/WIN_H, CAM_FOV_DEG};
-    cam.setPos({0.0f, 5.0f, 0.0f});
+    g_camera.setPos({0.0f, 5.0f, 0.0f});
 
     double lastTime{};
     glfwSwapInterval(1); // Force V-Sync
@@ -274,27 +275,27 @@ int main()
 
         if (glfwGetKey(window, GLFW_KEY_W) == GLFW_PRESS)
         {
-            cam.moveForward(CAM_SPEED, deltaTime);
+            g_camera.moveForward(CAM_SPEED, deltaTime);
         }
         if (glfwGetKey(window, GLFW_KEY_S) == GLFW_PRESS)
         {
-            cam.moveBackwards(CAM_SPEED, deltaTime);
+            g_camera.moveBackwards(CAM_SPEED, deltaTime);
         }
         if (glfwGetKey(window, GLFW_KEY_A) == GLFW_PRESS)
         {
-            cam.moveLeft(CAM_SPEED, deltaTime);
+            g_camera.moveLeft(CAM_SPEED, deltaTime);
         }
         if (glfwGetKey(window, GLFW_KEY_D) == GLFW_PRESS)
         {
-            cam.moveRight(CAM_SPEED, deltaTime);
+            g_camera.moveRight(CAM_SPEED, deltaTime);
         }
         if (glfwGetKey(window, GLFW_KEY_SPACE) == GLFW_PRESS)
         {
-            cam.moveUp(CAM_SPEED, deltaTime);
+            g_camera.moveUp(CAM_SPEED, deltaTime);
         }
         if (glfwGetKey(window, GLFW_KEY_LEFT_SHIFT) == GLFW_PRESS)
         {
-            cam.moveDown(CAM_SPEED, deltaTime);
+            g_camera.moveDown(CAM_SPEED, deltaTime);
         }
 
         glClearColor(0.0f, 0.5f, 0.5f, 1.0f);
@@ -302,18 +303,18 @@ int main()
 
         if (g_cursRelativeX)
         {
-            cam.rotateHorizontallyDeg(g_cursRelativeX/10.0f);
+            g_camera.rotateHorizontallyDeg(g_cursRelativeX/10.0f);
             g_cursRelativeX = 0;
         }
         if (g_cursRelativeY)
         {
-            cam.rotateVerticallyDeg(g_cursRelativeY/10.0f);
+            g_camera.rotateVerticallyDeg(g_cursRelativeY/10.0f);
             g_cursRelativeY = 0;
         }
 
         glBindVertexArray(cubeVao);
         mainShaderProg.bind();
-        cam.updateShaderUniforms(mainShaderProg);
+        g_camera.updateShaderUniforms(mainShaderProg);
         cobbleStoneTex.bind();
         glDrawArraysInstanced(GL_TRIANGLES, 0, CUBE_VERT_COUNT, blockPositions.size());
 
