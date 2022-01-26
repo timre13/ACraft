@@ -209,17 +209,15 @@ int main()
     //----------------------------------------------------------------------
 
     std::vector<glm::vec3> blockPositions{};
-    for (int i{}; i < 10000; ++i)
+    for (int x{}; x < 100; ++x)
     {
-        blockPositions.push_back({i/100, 0.0f, i%100});
-    }
-    std::vector<glm::mat4> blockMatrices{};
-    for (int i{}; i < blockPositions.size(); ++i)
-    {
-        auto mat = glm::mat4(1.0f);
-        mat = glm::translate(mat, {blockPositions[i]});
-        mat = glm::scale(mat, {BLOCK_MODEL_SCALE, BLOCK_MODEL_SCALE, BLOCK_MODEL_SCALE});
-        blockMatrices.push_back(mat);
+        for (int y{}; y < 100; ++y)
+        {
+            for (int z{}; z < 100; ++z)
+            {
+                blockPositions.push_back({x, y, z});
+            }
+        }
     }
 
     //----------------------------------------------------------------------
@@ -247,23 +245,11 @@ int main()
         glGenBuffers(1, &instancedVbo);
 
         glBindBuffer(GL_ARRAY_BUFFER, instancedVbo);
-        glBufferData(GL_ARRAY_BUFFER, blockMatrices.size()*sizeof(glm::mat4), blockMatrices.data(), GL_STATIC_DRAW);
+        glBufferData(GL_ARRAY_BUFFER, blockPositions.size()*sizeof(glm::vec3), blockPositions.data(), GL_STATIC_DRAW);
 
-        glVertexAttribPointer(VERT_ATTRIB_INDEX_INST_MAT_0, 4, GL_FLOAT, GL_FALSE, sizeof(glm::mat4), (void*)(0*sizeof(glm::vec4)));
+        glVertexAttribPointer(VERT_ATTRIB_INDEX_INST_MAT_0, 4, GL_FLOAT, GL_FALSE, sizeof(glm::vec3), (void*)0);
         glEnableVertexAttribArray(VERT_ATTRIB_INDEX_INST_MAT_0);
         glVertexAttribDivisor(VERT_ATTRIB_INDEX_INST_MAT_0, 1); // Instanced attribute
-
-        glVertexAttribPointer(VERT_ATTRIB_INDEX_INST_MAT_1, 4, GL_FLOAT, GL_FALSE, sizeof(glm::mat4), (void*)(1*sizeof(glm::vec4)));
-        glEnableVertexAttribArray(VERT_ATTRIB_INDEX_INST_MAT_1);
-        glVertexAttribDivisor(VERT_ATTRIB_INDEX_INST_MAT_1, 1); // Instanced attribute
-
-        glVertexAttribPointer(VERT_ATTRIB_INDEX_INST_MAT_2, 4, GL_FLOAT, GL_FALSE, sizeof(glm::mat4), (void*)(2*sizeof(glm::vec4)));
-        glEnableVertexAttribArray(VERT_ATTRIB_INDEX_INST_MAT_2);
-        glVertexAttribDivisor(VERT_ATTRIB_INDEX_INST_MAT_2, 1); // Instanced attribute
-
-        glVertexAttribPointer(VERT_ATTRIB_INDEX_INST_MAT_3, 4, GL_FLOAT, GL_FALSE, sizeof(glm::mat4), (void*)(3*sizeof(glm::vec4)));
-        glEnableVertexAttribArray(VERT_ATTRIB_INDEX_INST_MAT_3);
-        glVertexAttribDivisor(VERT_ATTRIB_INDEX_INST_MAT_3, 1); // Instanced attribute
     }
     glBindVertexArray(0);
 
