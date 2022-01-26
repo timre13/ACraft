@@ -3,6 +3,8 @@
 #include "ShaderProg.h"
 #include "Texture.h"
 #include "Camera.h"
+#include "../deps/OpenSimplexNoise/OpenSimplexNoise/OpenSimplexNoise.h"
+#include <cmath>
 #include <iomanip>
 #include <vector>
 #include <glm/gtc/matrix_transform.hpp>
@@ -10,7 +12,7 @@
 
 #define WIN_W 1500
 #define WIN_H 1000
-#define CAM_SPEED 0.01f
+#define CAM_SPEED 0.1f
 #define CAM_FOV_DEG 45.0f
 
 bool g_isWireframeMode = false;
@@ -210,14 +212,19 @@ int main()
 
     //----------------------------------------------------------------------
 
+    OpenSimplexNoise::Noise noiseGen;
     std::vector<glm::vec3> blockPositions{};
-    for (int x{}; x < 100; ++x)
+    for (int x{}; x < 1000; ++x)
     {
-        for (int y{}; y < 100; ++y)
+        for (int z{}; z < 1000; ++z)
         {
-            for (int z{}; z < 100; ++z)
+            const int groundHeight = std::round((noiseGen.eval(x/500.0f, z/500.0f)+0.5f)*100);
+            for (int y{}; y < 100; ++y)
             {
-                blockPositions.push_back({x, y, z});
+                if (y <= groundHeight && y > groundHeight-3)
+                {
+                    blockPositions.push_back({x, y, z});
+                }
             }
         }
     }
