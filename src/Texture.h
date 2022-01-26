@@ -9,9 +9,14 @@ private:
     uint m_texId{};
 
 public:
+    Texture() {}
     Texture(const std::string& path);
 
+    void open(const std::string& path);
+
     void bind();
+
+    inline bool isEmpty() const { return m_texId == 0; }
 
     ~Texture();
 };

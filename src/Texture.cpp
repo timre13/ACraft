@@ -7,6 +7,11 @@
 
 Texture::Texture(const std::string& path)
 {
+    open(path);
+}
+
+void Texture::open(const std::string& path)
+{
     Logger::log << "Loading texture: \"" << path << '"' << Logger::End;
 
     stbi_set_flip_vertically_on_load(1);
@@ -45,5 +50,6 @@ void Texture::bind()
 
 Texture::~Texture()
 {
-    glDeleteSamplers(1, &m_texId);
+    if (m_texId)
+        glDeleteSamplers(1, &m_texId);
 }

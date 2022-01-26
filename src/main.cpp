@@ -3,10 +3,12 @@
 #include "ShaderProg.h"
 #include "Texture.h"
 #include "Camera.h"
+#include "blocks.h"
 #include "../deps/OpenSimplexNoise/OpenSimplexNoise/OpenSimplexNoise.h"
 #include <cmath>
 #include <iomanip>
 #include <vector>
+#include <ctime>
 #include <glm/gtc/matrix_transform.hpp>
 #include <glm/gtc/type_ptr.hpp>
 
@@ -14,6 +16,9 @@
 #define WIN_H 1000
 #define CAM_SPEED 0.1f
 #define CAM_FOV_DEG 45.0f
+
+// Number of blocks renderd at once
+#define BLOCK_POS_BATCH_SIZE_COUNT 1024*1024*10
 
 bool g_isWireframeMode = false;
 int g_cursRelativeX = 0;
@@ -212,22 +217,38 @@ int main()
 
     //----------------------------------------------------------------------
 
-    OpenSimplexNoise::Noise noiseGen;
-    std::vector<glm::vec3> blockPositions{};
-    for (int x{}; x < 1000; ++x)
+    OpenSimplexNoise::Noise noiseGen{std::time(nullptr)};
+    std::array<std::vector<glm::vec3>, BLOCK_TYPE__COUNT> blockPositions{};
+    for (int x{}; x < 100; ++x)
     {
-        for (int z{}; z < 1000; ++z)
+        for (int z{}; z < 100; ++z)
         {
-            const int groundHeight = std::round((noiseGen.eval(x/500.0f, z/500.0f)+0.5f)*100);
+            const int groundHeight = std::max((int)std::round((noiseGen.eval(x/500.0f, z/500.0f)+0.5f)*100), 10);
             for (int y{}; y < 100; ++y)
             {
-                if (y <= groundHeight && y > groundHeight-3)
+                if (y <= groundHeight)
                 {
-                    blockPositions.push_back({x, y, z});
+                    const int grassLayerHeight = 1;
+                    const int dirtLayerHeight = 5+10*(noiseGen.eval(x/54.0f, z/54.0f)+0.5f);
+                    if (y > groundHeight-grassLayerHeight)
+                    {
+                        blockPositions[BLOCK_TYPE_GRASS].push_back({x, y, z});
+                    }
+                    else if (y > groundHeight-grassLayerHeight-dirtLayerHeight)
+                    {
+                        blockPositions[BLOCK_TYPE_DIRT].push_back({x, y, z});
+                    }
+                    else
+                    {
+                        blockPositions[BLOCK_TYPE_COBBLESTONE].push_back({x, y, z});
+                    }
                 }
             }
         }
     }
+    Logger::log << "There are " << blockPositions[BLOCK_TYPE_DIRT].size() << " dirt blocks" << Logger::End;
+    Logger::log << "There are " << blockPositions[BLOCK_TYPE_COBBLESTONE].size() << " cobblestone blocks" << Logger::End;
+    Logger::log << "There are " << blockPositions[BLOCK_TYPE_GRASS].size() << " grass blocks" << Logger::End;
 
     //----------------------------------------------------------------------
 
@@ -254,7 +275,7 @@ int main()
         glGenBuffers(1, &instancedVbo);
 
         glBindBuffer(GL_ARRAY_BUFFER, instancedVbo);
-        glBufferData(GL_ARRAY_BUFFER, blockPositions.size()*sizeof(glm::vec3), blockPositions.data(), GL_STATIC_DRAW);
+        glBufferData(GL_ARRAY_BUFFER, BLOCK_POS_BATCH_SIZE_COUNT*sizeof(glm::vec3), nullptr, GL_DYNAMIC_DRAW);
 
         glVertexAttribPointer(VERT_ATTRIB_INDEX_INST_MAT_0, 4, GL_FLOAT, GL_FALSE, sizeof(glm::vec3), (void*)0);
         glEnableVertexAttribArray(VERT_ATTRIB_INDEX_INST_MAT_0);
@@ -264,7 +285,7 @@ int main()
 
     //----------------------------------------------------------------------
 
-    Texture cobbleStoneTex = Texture{"../textures/cobblestone.png"};
+    loadBlockTextures();
 
     //----------------------------------------------------------------------
 
@@ -322,8 +343,21 @@ int main()
         glBindVertexArray(cubeVao);
         mainShaderProg.bind();
         g_camera.updateShaderUniforms(mainShaderProg);
-        cobbleStoneTex.bind();
-        glDrawArraysInstanced(GL_TRIANGLES, 0, CUBE_VERT_COUNT, blockPositions.size());
+        for (int blockType{}; blockType < BLOCK_TYPE__COUNT; ++blockType)
+        {
+            int renderedBlocks{};
+            int remainingBlocks = blockPositions[blockType].size();
+            while (remainingBlocks > 0)
+            {
+                const int batchSize = std::min(BLOCK_POS_BATCH_SIZE_COUNT, remainingBlocks);
+
+                glBufferSubData(GL_ARRAY_BUFFER, 0, batchSize*sizeof(glm::vec3), blockPositions[blockType].data()+renderedBlocks);
+                blockTextures[blockType].bind();
+                glDrawArraysInstanced(GL_TRIANGLES, 0, CUBE_VERT_COUNT, batchSize);
+                remainingBlocks -= BLOCK_POS_BATCH_SIZE_COUNT;
+                renderedBlocks += BLOCK_POS_BATCH_SIZE_COUNT;
+            }
+        }
 
         glfwSwapBuffers(window);
     }
