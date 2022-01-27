@@ -4,6 +4,7 @@
 #include "Texture.h"
 #include "Camera.h"
 #include "blocks.h"
+#include "obj.h"
 #include "../deps/OpenSimplexNoise/OpenSimplexNoise/OpenSimplexNoise.h"
 #include <cmath>
 #include <iomanip>
@@ -26,6 +27,8 @@ bool g_isWireframeMode = false;
 int g_cursRelativeX = 0;
 int g_cursRelativeY = 0;
 Camera g_camera = Camera{(float)WIN_W/WIN_H, CAM_FOV_DEG};
+
+bool g_isDebugCam = false;
 
 static void _glfwErrCb(int err, const char* desc)
 {
@@ -94,14 +97,26 @@ static void toggleWireframeMode()
     glPolygonMode(GL_FRONT_AND_BACK, g_isWireframeMode ? GL_LINE : GL_FILL);
 }
 
+static void toggleDebugCam()
+{
+    g_isDebugCam = !g_isDebugCam;
+}
+
 static void _keyCb(GLFWwindow* win, int key, int scancode, int action, int mods)
 {
     (void)win;
     (void)scancode;
 
-    if (action == GLFW_PRESS && mods == 0 && key == GLFW_KEY_F3)
+    if (action == GLFW_PRESS && mods == 0)
     {
-        toggleWireframeMode();
+        if (key == GLFW_KEY_F3)
+        {
+            toggleWireframeMode();
+        }
+        else if (key == GLFW_KEY_Q)
+        {
+            toggleDebugCam();
+        }
     }
 }
 
@@ -118,14 +133,12 @@ static void _mouseMoveCb(GLFWwindow*, double x, double y)
 
 #define VERT_ATTRIB_INDEX_MESH_COORDS 0
 #define VERT_ATTRIB_INDEX_TEX_COORDS 1
-#define VERT_ATTRIB_INDEX_INST_MAT_0 2
-#define VERT_ATTRIB_INDEX_INST_MAT_1 3
-#define VERT_ATTRIB_INDEX_INST_MAT_2 4
-#define VERT_ATTRIB_INDEX_INST_MAT_3 5
-#define CUBE_VERT_COUNT 36
-#define CUBE_VALS_PER_VERT 5
-#define CUBE_VERT_DATA_LEN (CUBE_VERT_COUNT * CUBE_VALS_PER_VERT)
-static constexpr float cubeVertices[CUBE_VERT_DATA_LEN] = {
+#define VALS_PER_VERT 5
+#define VERT_ATTRIB_INDEX_INST_POS 2
+
+#define BLOCK_VERT_COUNT 36
+#define BLOCK_VERT_DATA_LEN (BLOCK_VERT_COUNT * VALS_PER_VERT)
+static constexpr float blockVertices[BLOCK_VERT_DATA_LEN] = {
     //       Mesh              Texture
     // X      Y      Z          X     Y
     -1.0f,  1.0f, -1.0f, /**/ 0.0f,  1.0f,
@@ -215,7 +228,8 @@ int main()
 
     //----------------------------------------------------------------------
 
-    ShaderProg mainShaderProg = ShaderProg{"../src/shaders/main.vert.glsl", "../src/shaders/main.frag.glsl"};
+    ShaderProg blockShaderProg = ShaderProg{"../src/shaders/block_inst.vert.glsl", "../src/shaders/block_inst.frag.glsl"};
+    ShaderProg camModelShaderProg = ShaderProg{"../src/shaders/cam_model.vert.glsl", "../src/shaders/cam_model.frag.glsl"};
 
     //----------------------------------------------------------------------
 
@@ -267,40 +281,73 @@ int main()
 
     //----------------------------------------------------------------------
 
-    uint cubeVao{};
-    glGenVertexArrays(1, &cubeVao);
-    glBindVertexArray(cubeVao);
+    Logger::dbg << "Setting up block buffers" << Logger::End;
 
-    uint cubeVbo{};
-    uint instancedVbo{};
+    uint blockVao{};
+    glGenVertexArrays(1, &blockVao);
+    glBindVertexArray(blockVao);
+
+    uint blockVbo{};
+    uint blockInstVbo{};
     {
-        glGenBuffers(1, &cubeVbo);
+        glGenBuffers(1, &blockVbo);
 
-        glBindBuffer(GL_ARRAY_BUFFER, cubeVbo);
-        glBufferData(GL_ARRAY_BUFFER, CUBE_VERT_DATA_LEN*sizeof(float), &cubeVertices, GL_STATIC_DRAW);
+        glBindBuffer(GL_ARRAY_BUFFER, blockVbo);
+        glBufferData(GL_ARRAY_BUFFER, BLOCK_VERT_DATA_LEN*sizeof(float), &blockVertices, GL_STATIC_DRAW);
 
-        glVertexAttribPointer(VERT_ATTRIB_INDEX_MESH_COORDS, 3, GL_FLOAT, GL_FALSE, CUBE_VALS_PER_VERT*sizeof(float), (void*)(0));
+        glVertexAttribPointer(VERT_ATTRIB_INDEX_MESH_COORDS, 3, GL_FLOAT, GL_FALSE, VALS_PER_VERT*sizeof(float), (void*)(0));
         glEnableVertexAttribArray(VERT_ATTRIB_INDEX_MESH_COORDS);
 
-        glVertexAttribPointer(VERT_ATTRIB_INDEX_TEX_COORDS, 2, GL_FLOAT, GL_FALSE, CUBE_VALS_PER_VERT*sizeof(float), (void*)(3*sizeof(float)));
+        glVertexAttribPointer(VERT_ATTRIB_INDEX_TEX_COORDS, 2, GL_FLOAT, GL_FALSE, VALS_PER_VERT*sizeof(float), (void*)(3*sizeof(float)));
         glEnableVertexAttribArray(VERT_ATTRIB_INDEX_TEX_COORDS);
 
         //----------------------------------------------------------------------
 
-        glGenBuffers(1, &instancedVbo);
+        glGenBuffers(1, &blockInstVbo);
 
-        glBindBuffer(GL_ARRAY_BUFFER, instancedVbo);
+        glBindBuffer(GL_ARRAY_BUFFER, blockInstVbo);
         glBufferData(GL_ARRAY_BUFFER, BLOCK_POS_BATCH_SIZE_COUNT*sizeof(glm::vec3), nullptr, GL_DYNAMIC_DRAW);
 
-        glVertexAttribPointer(VERT_ATTRIB_INDEX_INST_MAT_0, 4, GL_FLOAT, GL_FALSE, sizeof(glm::vec3), (void*)0);
-        glEnableVertexAttribArray(VERT_ATTRIB_INDEX_INST_MAT_0);
-        glVertexAttribDivisor(VERT_ATTRIB_INDEX_INST_MAT_0, 1); // Instanced attribute
+        glVertexAttribPointer(VERT_ATTRIB_INDEX_INST_POS, 4, GL_FLOAT, GL_FALSE, sizeof(glm::vec3), (void*)0);
+        glEnableVertexAttribArray(VERT_ATTRIB_INDEX_INST_POS);
+        glVertexAttribDivisor(VERT_ATTRIB_INDEX_INST_POS, 1); // Instanced attribute
     }
     glBindVertexArray(0);
+
+    Logger::dbg << "Set up block buffers" << Logger::End;
+
+    //----------------------------------------------------------------------
+
+    Logger::dbg << "Setting up camera model buffers" << Logger::End;
+
+    auto camModelVertices = loadObjFile("../models/camera.obj");
+
+    uint camModelVao{};
+    glGenVertexArrays(1, &camModelVao);
+    glBindVertexArray(camModelVao);
+
+    uint camModelVbo{};
+    {
+        glGenBuffers(1, &camModelVbo);
+
+        glBindBuffer(GL_ARRAY_BUFFER, camModelVbo);
+        glBufferData(GL_ARRAY_BUFFER, camModelVertices.size()*sizeof(float), camModelVertices.data(), GL_STATIC_DRAW);
+
+        glVertexAttribPointer(VERT_ATTRIB_INDEX_MESH_COORDS, 3, GL_FLOAT, GL_FALSE, VALS_PER_VERT*sizeof(float), (void*)(0));
+        glEnableVertexAttribArray(VERT_ATTRIB_INDEX_MESH_COORDS);
+
+        glVertexAttribPointer(VERT_ATTRIB_INDEX_TEX_COORDS, 2, GL_FLOAT, GL_FALSE, VALS_PER_VERT*sizeof(float), (void*)(3*sizeof(float)));
+        glEnableVertexAttribArray(VERT_ATTRIB_INDEX_TEX_COORDS);
+    }
+    glBindVertexArray(0);
+
+    Logger::dbg << "Set up camera model buffers" << Logger::End;
 
     //----------------------------------------------------------------------
 
     loadBlockTextures();
+
+    Texture placeholderTex = Texture{"../textures/placeholder.png"};
 
     //----------------------------------------------------------------------
 
@@ -316,29 +363,43 @@ int main()
 
         glfwPollEvents();
 
+        bool isTitleUpdateNeeded = false;
         if (glfwGetKey(window, GLFW_KEY_W) == GLFW_PRESS)
         {
             g_camera.moveForward(CAM_SPEED, deltaTime);
+            isTitleUpdateNeeded = true;
         }
         if (glfwGetKey(window, GLFW_KEY_S) == GLFW_PRESS)
         {
             g_camera.moveBackwards(CAM_SPEED, deltaTime);
+            isTitleUpdateNeeded = true;
         }
         if (glfwGetKey(window, GLFW_KEY_A) == GLFW_PRESS)
         {
             g_camera.moveLeft(CAM_SPEED, deltaTime);
+            isTitleUpdateNeeded = true;
         }
         if (glfwGetKey(window, GLFW_KEY_D) == GLFW_PRESS)
         {
             g_camera.moveRight(CAM_SPEED, deltaTime);
+            isTitleUpdateNeeded = true;
         }
         if (glfwGetKey(window, GLFW_KEY_SPACE) == GLFW_PRESS)
         {
             g_camera.moveUp(CAM_SPEED, deltaTime);
+            isTitleUpdateNeeded = true;
         }
         if (glfwGetKey(window, GLFW_KEY_LEFT_SHIFT) == GLFW_PRESS)
         {
             g_camera.moveDown(CAM_SPEED, deltaTime);
+            isTitleUpdateNeeded = true;
+        }
+        if (isTitleUpdateNeeded)
+        {
+            glfwSetWindowTitle(window, ("ACraft - Camera: {"
+                    +std::to_string(g_camera.getPos().x)+", "
+                    +std::to_string(g_camera.getPos().y)+", "
+                    +std::to_string(g_camera.getPos().z)+"}").c_str());
         }
 
         glClearColor(0.0f, 0.5f, 0.5f, 1.0f);
@@ -355,9 +416,12 @@ int main()
             g_cursRelativeY = 0;
         }
 
-        glBindVertexArray(cubeVao);
-        mainShaderProg.bind();
-        g_camera.updateShaderUniforms(mainShaderProg);
+        //------------------------ Block rendering -----------------------------
+
+        glBindVertexArray(blockVao);
+        glBindBuffer(GL_ARRAY_BUFFER, blockInstVbo);
+        blockShaderProg.bind();
+        g_camera.updateShaderUniforms(blockShaderProg);
         for (int blockType{}; blockType < BLOCK_TYPE__COUNT; ++blockType)
         {
             int renderedBlocks{};
@@ -368,19 +432,39 @@ int main()
 
                 glBufferSubData(GL_ARRAY_BUFFER, 0, batchSize*sizeof(glm::vec3), blockPositions[blockType].data()+renderedBlocks);
                 blockTextures[blockType].bind();
-                glDrawArraysInstanced(GL_TRIANGLES, 0, CUBE_VERT_COUNT, batchSize);
+                glDrawArraysInstanced(GL_TRIANGLES, 0, BLOCK_VERT_COUNT, batchSize);
                 remainingBlocks -= BLOCK_POS_BATCH_SIZE_COUNT;
                 renderedBlocks += BLOCK_POS_BATCH_SIZE_COUNT;
             }
         }
 
+        //------------------- Debug camera model rendering ---------------------
+
+        if (g_isDebugCam)
+        {
+            auto camModelMat = glm::mat4(1.0f);
+            camModelMat = glm::translate(camModelMat, {g_camera.getPos().x, g_camera.getPos().y-10, g_camera.getPos().z});
+            camModelMat = glm::rotate(camModelMat, glm::radians(g_camera.getHorizRotDeg()+90.0f), {0.0f, -1.0f, 0.0f});
+            camModelMat = glm::rotate(camModelMat, glm::radians(g_camera.getVertRotDeg()), {1.0f, 0.0f, 0.0f});
+            camModelMat = glm::scale(camModelMat, {10.0f, 10.0f, 10.0f});
+
+            glBindVertexArray(camModelVao);
+            camModelShaderProg.bind();
+            camModelShaderProg.setUniform("inModelMat", camModelMat);
+            g_camera.updateShaderUniforms(camModelShaderProg);
+            placeholderTex.bind();
+            glDrawArrays(GL_TRIANGLES, 0, camModelVertices.size()/VALS_PER_VERT);
+        }
+
+        //----------------------------------------------------------------------
+
         glfwSwapBuffers(window);
     }
 
     Logger::log << "Cleaning up" << Logger::End;
-    glDeleteBuffers(1, &cubeVbo);
-    glDeleteBuffers(1, &instancedVbo);
-    glDeleteVertexArrays(1, &cubeVao);
+    glDeleteBuffers(1, &blockVbo);
+    glDeleteBuffers(1, &blockInstVbo);
+    glDeleteVertexArrays(1, &blockVao);
     glfwDestroyWindow(window);
     glfwTerminate();
     return 0;

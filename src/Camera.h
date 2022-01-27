@@ -10,8 +10,8 @@ private:
     float m_fovDeg{};
     float m_winAspectRatio{};
     glm::vec3 m_frontVec{};
-    float m_yawDeg{-90.0f};
-    float m_pitchDeg{};
+    float m_yawDeg{}; // Horizontal rotation
+    float m_pitchDeg{}; // Vertical rotation
 
     void recalcFrontVec();
 
@@ -31,6 +31,10 @@ public:
 
     void rotateHorizontallyDeg(float deg);
     void rotateVerticallyDeg(float deg);
+
+    inline glm::vec3 getPos() const { return m_pos; }
+    inline float getHorizRotDeg() const { return m_yawDeg; }
+    inline float getVertRotDeg() const { return m_pitchDeg; }
 
     void updateShaderUniforms(ShaderProg& shader);
 };

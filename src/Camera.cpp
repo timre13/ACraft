@@ -1,5 +1,7 @@
 #include "Camera.h"
 
+extern bool g_isDebugCam;
+
 void Camera::recalcFrontVec()
 {
     glm::vec3 camDir;
@@ -89,7 +91,16 @@ void Camera::rotateVerticallyDeg(float deg)
 
 void Camera::updateShaderUniforms(ShaderProg& shader)
 {
-    auto viewMat = glm::lookAt(m_pos, m_pos+m_frontVec, {0.0f, 1.0f, 0.0f});
+    glm::mat4 viewMat{};
+    if (g_isDebugCam)
+    {
+        auto pos = glm::vec3{0.0f, 1000.0f, 0.0f};
+        viewMat = glm::lookAt(pos, glm::vec3{25.0f, 0.0f, 25.0f}, {0.0f, 1.0f, 0.0f});
+    }
+    else
+    {
+        viewMat = glm::lookAt(m_pos, m_pos+m_frontVec, {0.0f, 1.0f, 0.0f});
+    }
     shader.setUniform("inViewMat", viewMat);
 
     auto projMat = glm::perspective(glm::radians(m_fovDeg), m_winAspectRatio, 0.1f, 10000.0f);
