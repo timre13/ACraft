@@ -11,8 +11,7 @@ set(CMAKE_EXPORT_COMPILE_COMMANDS true)
 
 link_libraries(GLEW GL glfw)
 
-set(CMAKE_CXX_FLAGS "-Wall -Wextra -Wpedantic -Werror=return-type -g3 -pthread")
-#set(CMAKE_CXX_FLAGS "-Wall -Wextra -Wpedantic -Werror=return-type -Weffc++ -g3 -pthread")
+set(CMAKE_CXX_FLAGS "-Wall -Wextra -Wpedantic -Werror=return-type -Weffc++ -g3 -pthread")
 
 if (CMAKE_CXX_COMPILER_ID STREQUAL "Clang")
     # Clang needs more flags to generate good debug info

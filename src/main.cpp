@@ -20,6 +20,8 @@
 // Number of blocks renderd at once
 #define BLOCK_POS_BATCH_SIZE_COUNT 1024*1024*10
 
+#define GROUND_HEIGHT_MAX 300
+
 bool g_isWireframeMode = false;
 int g_cursRelativeX = 0;
 int g_cursRelativeY = 0;
@@ -223,14 +225,23 @@ int main()
     {
         for (int z{}; z < 100; ++z)
         {
-            const int groundHeight = std::max((int)std::round((noiseGen.eval(x/500.0f, z/500.0f)+0.5f)*100), 10);
-            for (int y{}; y < 100; ++y)
+            const int groundHeight = 50+std::round((noiseGen.eval(x/500.0f, z/500.0f)+0.5f)*(GROUND_HEIGHT_MAX-50));
+            for (int y{}; y < GROUND_HEIGHT_MAX; ++y)
             {
                 if (y <= groundHeight)
                 {
+                    // TODO: Dirt blobs inside stone
+                    // TODO: More stone types
+                    // TODO: Ores
                     const int grassLayerHeight = 1;
                     const int dirtLayerHeight = 5+10*(noiseGen.eval(x/54.0f, z/54.0f)+0.5f);
-                    if (y > groundHeight-grassLayerHeight)
+                    const int stoneLayerHeight = groundHeight*0.75f-20*(noiseGen.eval(x/20.0f, z/20.0f)+0.5f);
+                    const int bedrockLayerHeight = 1+2*(noiseGen.eval(x/5.0f, z/5.0f)+0.5f);
+                    if (y <= bedrockLayerHeight)
+                    {
+                        blockPositions[BLOCK_TYPE_BEDROCK].push_back({x, y, z});
+                    }
+                    else if (y > groundHeight-grassLayerHeight)
                     {
                         blockPositions[BLOCK_TYPE_GRASS].push_back({x, y, z});
                     }
@@ -238,9 +249,13 @@ int main()
                     {
                         blockPositions[BLOCK_TYPE_DIRT].push_back({x, y, z});
                     }
+                    else if (y > groundHeight-grassLayerHeight-dirtLayerHeight-stoneLayerHeight)
+                    {
+                        blockPositions[BLOCK_TYPE_STONE].push_back({x, y, z});
+                    }
                     else
                     {
-                        blockPositions[BLOCK_TYPE_COBBLESTONE].push_back({x, y, z});
+                        blockPositions[BLOCK_TYPE_DEEPSLATE].push_back({x, y, z});
                     }
                 }
             }
