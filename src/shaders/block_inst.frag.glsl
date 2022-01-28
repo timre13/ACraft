@@ -3,10 +3,11 @@
 out vec4 outColor;
 
 in vec2 texCoord;
+in float texLayerI;
 
-uniform sampler2D tex;
+uniform sampler2DArray textures;
 
 void main()
 {
-    outColor = texture(tex, texCoord);
+    outColor = texture(textures, vec3(texCoord, texLayerI));
 }

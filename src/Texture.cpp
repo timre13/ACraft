@@ -51,5 +51,8 @@ void Texture::bind()
 Texture::~Texture()
 {
     if (m_texId)
+    {
         glDeleteSamplers(1, &m_texId);
+        Logger::dbg << "Texture " << m_texId << " deleted" << Logger::End;
+    }
 }

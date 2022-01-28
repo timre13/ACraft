@@ -6,6 +6,7 @@
 #include "blocks.h"
 #include "obj.h"
 #include "../deps/OpenSimplexNoise/OpenSimplexNoise/OpenSimplexNoise.h"
+#include "../deps/stb/stb_image.h"
 #include <cmath>
 #include <iomanip>
 #include <vector>
@@ -21,7 +22,7 @@
 // Number of blocks renderd at once
 #define BLOCK_POS_BATCH_SIZE_COUNT 1024*1024*10
 
-#define GROUND_HEIGHT_MAX 300
+#define GROUND_HEIGHT_MAX 384
 
 bool g_isWireframeMode = false;
 int g_cursRelativeX = 0;
@@ -77,6 +78,21 @@ static void GLAPIENTRY _glMsgCb(
 
     std::cout << "\" : " << message << '\n';
     std::cout.flush();
+
+    int arrayBufferBinding{};
+    glGetIntegerv(GL_ARRAY_BUFFER_BINDING, &arrayBufferBinding);
+    int vertexArrayBinding{};
+    glGetIntegerv(GL_VERTEX_ARRAY_BINDING, &vertexArrayBinding);
+    int tex2dBinding{};
+    glGetIntegerv(GL_TEXTURE_BINDING_2D, &tex2dBinding);
+    int tex2dArrBinding{};
+    glGetIntegerv(GL_TEXTURE_BINDING_2D_ARRAY, &tex2dArrBinding);
+    Logger::dbg << "State: "
+        << "\n\tBound VAO              = " << vertexArrayBinding
+        << "\n\tBound VBO              = " << arrayBufferBinding
+        << "\n\tBound 2D Texture       = " << tex2dBinding
+        << "\n\tBound 2D Texture Array = " << tex2dArrBinding
+        << Logger::End;
 }
 
 static void _windowCloseCb(GLFWwindow*)
@@ -131,10 +147,17 @@ static void _mouseMoveCb(GLFWwindow*, double x, double y)
     cursLastY = y;
 }
 
+struct Block
+{
+    glm::vec3 pos;
+    BlockType type;
+};
+
 #define VERT_ATTRIB_INDEX_MESH_COORDS 0
 #define VERT_ATTRIB_INDEX_TEX_COORDS 1
 #define VALS_PER_VERT 5
 #define VERT_ATTRIB_INDEX_INST_POS 2
+#define VERT_ATTRIB_INDEX_INST_TYPE 3
 
 #define BLOCK_VERT_COUNT 36
 #define BLOCK_VERT_DATA_LEN (BLOCK_VERT_COUNT * VALS_PER_VERT)
@@ -234,10 +257,10 @@ int main()
     //----------------------------------------------------------------------
 
     OpenSimplexNoise::Noise noiseGen{std::time(nullptr)};
-    std::array<std::vector<glm::vec3>, BLOCK_TYPE__COUNT> blockPositions{};
-    for (int x{}; x < 100; ++x)
+    std::vector<Block> blocks;
+    for (int x{}; x < 16; ++x)
     {
-        for (int z{}; z < 100; ++z)
+        for (int z{}; z < 16; ++z)
         {
             const int groundHeight = 50+std::round((noiseGen.eval(x/500.0f, z/500.0f)+0.5f)*(GROUND_HEIGHT_MAX-50));
             for (int y{}; y < GROUND_HEIGHT_MAX; ++y)
@@ -251,33 +274,32 @@ int main()
                     const int dirtLayerHeight = 5+10*(noiseGen.eval(x/54.0f, z/54.0f)+0.5f);
                     const int stoneLayerHeight = groundHeight*0.75f-20*(noiseGen.eval(x/20.0f, z/20.0f)+0.5f);
                     const int bedrockLayerHeight = 1+2*(noiseGen.eval(x/5.0f, z/5.0f)+0.5f);
+                    BlockType type{};
                     if (y <= bedrockLayerHeight)
                     {
-                        blockPositions[BLOCK_TYPE_BEDROCK].push_back({x, y, z});
+                        type = BLOCK_TYPE_BEDROCK;
                     }
                     else if (y > groundHeight-grassLayerHeight)
                     {
-                        blockPositions[BLOCK_TYPE_GRASS].push_back({x, y, z});
+                        type = BLOCK_TYPE_GRASS;
                     }
                     else if (y > groundHeight-grassLayerHeight-dirtLayerHeight)
                     {
-                        blockPositions[BLOCK_TYPE_DIRT].push_back({x, y, z});
+                        type = BLOCK_TYPE_DIRT;
                     }
                     else if (y > groundHeight-grassLayerHeight-dirtLayerHeight-stoneLayerHeight)
                     {
-                        blockPositions[BLOCK_TYPE_STONE].push_back({x, y, z});
+                        type = BLOCK_TYPE_STONE;
                     }
                     else
                     {
-                        blockPositions[BLOCK_TYPE_DEEPSLATE].push_back({x, y, z});
+                        type = BLOCK_TYPE_DEEPSLATE;
                     }
+                    blocks.push_back({.pos=glm::vec3{x, y, z}, .type=type});
                 }
             }
         }
     }
-    Logger::log << "There are " << blockPositions[BLOCK_TYPE_DIRT].size() << " dirt blocks" << Logger::End;
-    Logger::log << "There are " << blockPositions[BLOCK_TYPE_COBBLESTONE].size() << " cobblestone blocks" << Logger::End;
-    Logger::log << "There are " << blockPositions[BLOCK_TYPE_GRASS].size() << " grass blocks" << Logger::End;
 
     //----------------------------------------------------------------------
 
@@ -288,7 +310,8 @@ int main()
     glBindVertexArray(blockVao);
 
     uint blockVbo{};
-    uint blockInstVbo{};
+    uint blockPosInstVbo{};
+    uint blockTypeInstVbo{};
     {
         glGenBuffers(1, &blockVbo);
 
@@ -303,14 +326,24 @@ int main()
 
         //----------------------------------------------------------------------
 
-        glGenBuffers(1, &blockInstVbo);
+        glGenBuffers(1, &blockPosInstVbo);
 
-        glBindBuffer(GL_ARRAY_BUFFER, blockInstVbo);
+        glBindBuffer(GL_ARRAY_BUFFER, blockPosInstVbo);
         glBufferData(GL_ARRAY_BUFFER, BLOCK_POS_BATCH_SIZE_COUNT*sizeof(glm::vec3), nullptr, GL_DYNAMIC_DRAW);
 
         glVertexAttribPointer(VERT_ATTRIB_INDEX_INST_POS, 4, GL_FLOAT, GL_FALSE, sizeof(glm::vec3), (void*)0);
         glEnableVertexAttribArray(VERT_ATTRIB_INDEX_INST_POS);
         glVertexAttribDivisor(VERT_ATTRIB_INDEX_INST_POS, 1); // Instanced attribute
+
+
+        glGenBuffers(1, &blockTypeInstVbo);
+
+        glBindBuffer(GL_ARRAY_BUFFER, blockTypeInstVbo);
+        glBufferData(GL_ARRAY_BUFFER, BLOCK_POS_BATCH_SIZE_COUNT*sizeof(float), nullptr, GL_DYNAMIC_DRAW);
+
+        glVertexAttribPointer(VERT_ATTRIB_INDEX_INST_TYPE, 1, GL_FLOAT, GL_FALSE, 0, 0);
+        glEnableVertexAttribArray(VERT_ATTRIB_INDEX_INST_TYPE);
+        glVertexAttribDivisor(VERT_ATTRIB_INDEX_INST_TYPE, 1); // Instanced attribute
     }
     glBindVertexArray(0);
 
@@ -345,7 +378,34 @@ int main()
 
     //----------------------------------------------------------------------
 
-    loadBlockTextures();
+    int maxArrayTextureLayers{};
+    glGetIntegerv(GL_MAX_ARRAY_TEXTURE_LAYERS, &maxArrayTextureLayers);
+    Logger::dbg << "GL_MAX_ARRAY_TEXTURE_LAYERS = " << maxArrayTextureLayers << Logger::End;
+    assert(BLOCK_TYPE__COUNT <= maxArrayTextureLayers); // Check if we have space to store all the textures in a texture array
+
+    uint blockTexArray{};
+    glGenTextures(1, &blockTexArray);
+    glBindTexture(GL_TEXTURE_2D_ARRAY, blockTexArray);
+    glTexImage3D(GL_TEXTURE_2D_ARRAY, 0, GL_RGBA, 16, 16, BLOCK_TYPE__COUNT, 0, GL_RGBA, GL_UNSIGNED_BYTE, NULL);
+    // Fill each image layer with the data
+    for (size_t i{}; i < (size_t)BLOCK_TYPE__COUNT; ++i)
+    {
+        std::string path = std::string(BLOCK_TEXTURE_DIR) + "/" + blockTexturePaths[i];
+
+        int width{};
+        int height{};
+        int _{};
+        unsigned char* data = stbi_load(path.c_str(), &width, &height, &_, 4);
+        assert(width == 16);
+        assert(height == 16);
+
+        glTexSubImage3D(GL_TEXTURE_2D_ARRAY, 0, 0, 0, i, 16, 16, 1, GL_RGBA, GL_UNSIGNED_BYTE, data);
+
+        stbi_image_free(data);
+    }
+    glGenerateMipmap(GL_TEXTURE_2D_ARRAY);
+    glTexParameteri(GL_TEXTURE_2D_ARRAY, GL_TEXTURE_MIN_FILTER, GL_NEAREST_MIPMAP_LINEAR);
+    glTexParameteri(GL_TEXTURE_2D_ARRAY, GL_TEXTURE_MAG_FILTER, GL_NEAREST);
 
     Texture placeholderTex = Texture{"../textures/placeholder.png"};
 
@@ -416,22 +476,41 @@ int main()
             g_cursRelativeY = 0;
         }
 
+        // TODO: Chunks
+        // TODO: Only render visible blocks:
+        //  * https://community.khronos.org/t/improve-performance-render-100000-objects/67088/3
+
         //------------------------ Block rendering -----------------------------
 
-        glBindVertexArray(blockVao);
-        glBindBuffer(GL_ARRAY_BUFFER, blockInstVbo);
-        blockShaderProg.bind();
-        g_camera.updateShaderUniforms(blockShaderProg);
-        for (int blockType{}; blockType < BLOCK_TYPE__COUNT; ++blockType)
+        std::vector<glm::vec3> blockPositions{};
+        blockPositions.reserve(10000);
+        std::vector<int> blockTypes{};
+        blockTypes.reserve(10000);
+        // Prepare block data
+        for (const auto& block : blocks)
         {
+            blockTypes.push_back(block.type);
+            blockPositions.push_back(block.pos);
+        }
+
+        // Render blocks
+        {
+            glBindVertexArray(blockVao);
+            blockShaderProg.bind();
+            g_camera.updateShaderUniforms(blockShaderProg);
+
             int renderedBlocks{};
-            int remainingBlocks = blockPositions[blockType].size();
+            int remainingBlocks = blockPositions.size();
             while (remainingBlocks > 0)
             {
                 const int batchSize = std::min(BLOCK_POS_BATCH_SIZE_COUNT, remainingBlocks);
 
-                glBufferSubData(GL_ARRAY_BUFFER, 0, batchSize*sizeof(glm::vec3), blockPositions[blockType].data()+renderedBlocks);
-                blockTextures[blockType].bind();
+                glBindBuffer(GL_ARRAY_BUFFER, blockPosInstVbo);
+                glBufferSubData(GL_ARRAY_BUFFER, 0, batchSize*sizeof(glm::vec3), blockPositions.data()+renderedBlocks);
+
+                glBindBuffer(GL_ARRAY_BUFFER, blockTypeInstVbo);
+                glBufferSubData(GL_ARRAY_BUFFER, 0, batchSize*sizeof(float), blockTypes.data()+renderedBlocks);
+
                 glDrawArraysInstanced(GL_TRIANGLES, 0, BLOCK_VERT_COUNT, batchSize);
                 remainingBlocks -= BLOCK_POS_BATCH_SIZE_COUNT;
                 renderedBlocks += BLOCK_POS_BATCH_SIZE_COUNT;
@@ -462,8 +541,9 @@ int main()
     }
 
     Logger::log << "Cleaning up" << Logger::End;
+    glDeleteTextures(1, &blockTexArray);
     glDeleteBuffers(1, &blockVbo);
-    glDeleteBuffers(1, &blockInstVbo);
+    glDeleteBuffers(1, &blockPosInstVbo);
     glDeleteVertexArrays(1, &blockVao);
     glfwDestroyWindow(window);
     glfwTerminate();

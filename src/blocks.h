@@ -24,6 +24,3 @@ constexpr std::array<const char*, (int)BLOCK_TYPE__COUNT> blockTexturePaths = {
     "bedrock.png",
     "deepslate.png",
 };
-extern std::array<Texture, BLOCK_TYPE__COUNT> blockTextures;
-
-void loadBlockTextures();
