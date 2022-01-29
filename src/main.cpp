@@ -267,13 +267,13 @@ int main()
             {
                 if (y <= groundHeight)
                 {
-                    // TODO: Dirt blobs inside stone
                     // TODO: More stone types
                     // TODO: Ores
                     const int grassLayerHeight = 1;
                     const int dirtLayerHeight = 5+10*(noiseGen.eval(x/54.0f, z/54.0f)+0.5f);
                     const int stoneLayerHeight = groundHeight*0.75f-20*(noiseGen.eval(x/20.0f, z/20.0f)+0.5f);
                     const int bedrockLayerHeight = 1+2*(noiseGen.eval(x/5.0f, z/5.0f)+0.5f);
+                    const int isDirtBlob = y > 20 && noiseGen.eval(x/8.0f, z/8.0f, y/8.0f) >= 0.4f;
                     BlockType type{};
                     if (y <= bedrockLayerHeight)
                     {
@@ -283,7 +283,7 @@ int main()
                     {
                         type = BLOCK_TYPE_GRASS;
                     }
-                    else if (y > groundHeight-grassLayerHeight-dirtLayerHeight)
+                    else if (isDirtBlob || y > groundHeight-grassLayerHeight-dirtLayerHeight)
                     {
                         type = BLOCK_TYPE_DIRT;
                     }
