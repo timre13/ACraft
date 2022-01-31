@@ -24,10 +24,13 @@
 
 #define GROUND_HEIGHT_MAX 384
 
+#define CHUNK_WIDTH_BLOCKS 16
+
 bool g_isWireframeMode = false;
 int g_cursRelativeX = 0;
 int g_cursRelativeY = 0;
-Camera g_camera = Camera{(float)WIN_W/WIN_H, CAM_FOV_DEG};
+auto g_camera = Camera{(float)WIN_W/WIN_H, CAM_FOV_DEG};
+auto g_noiseGen = OpenSimplexNoise::Noise{std::time(nullptr)};
 
 bool g_isDebugCam = false;
 
@@ -149,8 +152,7 @@ static void _mouseMoveCb(GLFWwindow*, double x, double y)
 
 struct Block
 {
-    glm::vec3 pos;
-    BlockType type;
+    BlockType type{};
 };
 
 #define VERT_ATTRIB_INDEX_MESH_COORDS 0
@@ -202,6 +204,74 @@ static constexpr float blockVertices[BLOCK_VERT_DATA_LEN] = {
      1.0f, -1.0f, -1.0f, /**/ 1.0f,  0.0f,
 };
 #define BLOCK_MODEL_SCALE 0.5f
+
+struct Chunk
+{
+    /*
+     * Position of the chunk in a chunk-sized grid.
+     */
+    int chunkX{};
+    int chunkZ{};
+
+    using BlockRow_t = std::array<Block, CHUNK_WIDTH_BLOCKS>;
+    using ChunkSlice_t = std::array<BlockRow_t, CHUNK_WIDTH_BLOCKS>;
+    using ChunkContent_t = std::array<ChunkSlice_t, GROUND_HEIGHT_MAX>;
+    ChunkContent_t blocks; // Indexing: [y][z][x]
+};
+
+Chunk genChunk(int chunkX, int chunkZ)
+{
+    Chunk chunk;
+    chunk.chunkX = chunkX;
+    chunk.chunkZ = chunkZ;
+
+    for (int offsX{}; offsX < CHUNK_WIDTH_BLOCKS; ++offsX)
+    {
+        for (int offsZ{}; offsZ < CHUNK_WIDTH_BLOCKS; ++offsZ)
+        {
+            const int x = chunkX*CHUNK_WIDTH_BLOCKS+offsX;
+            const int z = chunkZ*CHUNK_WIDTH_BLOCKS+offsZ;
+
+            const int groundHeight = 50+std::round((g_noiseGen.eval(x/500.0f, z/500.0f)+0.5f)*(GROUND_HEIGHT_MAX-50));
+            for (int y{}; y < GROUND_HEIGHT_MAX; ++y)
+            {
+                BlockType type = BLOCK_TYPE_COBBLESTONE; // TODO: Should be air by default
+                if (y <= groundHeight)
+                {
+                    // TODO: More stone types
+                    // TODO: Ores
+                    const int grassLayerHeight = 1;
+                    const int dirtLayerHeight = 5+10*(g_noiseGen.eval(x/54.0f, z/54.0f)+0.5f);
+                    const int stoneLayerHeight = groundHeight*0.75f-20*(g_noiseGen.eval(x/20.0f, z/20.0f)+0.5f);
+                    const int bedrockLayerHeight = 1+2*(g_noiseGen.eval(x/5.0f, z/5.0f)+0.5f);
+                    const int isDirtBlob = y > 20 && g_noiseGen.eval(x/8.0f, z/8.0f, y/8.0f) >= 0.4f;
+                    if (y <= bedrockLayerHeight)
+                    {
+                        type = BLOCK_TYPE_BEDROCK;
+                    }
+                    else if (y > groundHeight-grassLayerHeight)
+                    {
+                        type = BLOCK_TYPE_GRASS;
+                    }
+                    else if (isDirtBlob || y > groundHeight-grassLayerHeight-dirtLayerHeight)
+                    {
+                        type = BLOCK_TYPE_DIRT;
+                    }
+                    else if (y > groundHeight-grassLayerHeight-dirtLayerHeight-stoneLayerHeight)
+                    {
+                        type = BLOCK_TYPE_STONE;
+                    }
+                    else
+                    {
+                        type = BLOCK_TYPE_DEEPSLATE;
+                    }
+                }
+                chunk.blocks[y][offsZ][offsX].type = type;
+            }
+        }
+    }
+    return chunk;
+}
 
 int main()
 {
@@ -256,50 +326,8 @@ int main()
 
     //----------------------------------------------------------------------
 
-    OpenSimplexNoise::Noise noiseGen{std::time(nullptr)};
-    std::vector<Block> blocks;
-    for (int x{}; x < 16; ++x)
-    {
-        for (int z{}; z < 16; ++z)
-        {
-            const int groundHeight = 50+std::round((noiseGen.eval(x/500.0f, z/500.0f)+0.5f)*(GROUND_HEIGHT_MAX-50));
-            for (int y{}; y < GROUND_HEIGHT_MAX; ++y)
-            {
-                if (y <= groundHeight)
-                {
-                    // TODO: More stone types
-                    // TODO: Ores
-                    const int grassLayerHeight = 1;
-                    const int dirtLayerHeight = 5+10*(noiseGen.eval(x/54.0f, z/54.0f)+0.5f);
-                    const int stoneLayerHeight = groundHeight*0.75f-20*(noiseGen.eval(x/20.0f, z/20.0f)+0.5f);
-                    const int bedrockLayerHeight = 1+2*(noiseGen.eval(x/5.0f, z/5.0f)+0.5f);
-                    const int isDirtBlob = y > 20 && noiseGen.eval(x/8.0f, z/8.0f, y/8.0f) >= 0.4f;
-                    BlockType type{};
-                    if (y <= bedrockLayerHeight)
-                    {
-                        type = BLOCK_TYPE_BEDROCK;
-                    }
-                    else if (y > groundHeight-grassLayerHeight)
-                    {
-                        type = BLOCK_TYPE_GRASS;
-                    }
-                    else if (isDirtBlob || y > groundHeight-grassLayerHeight-dirtLayerHeight)
-                    {
-                        type = BLOCK_TYPE_DIRT;
-                    }
-                    else if (y > groundHeight-grassLayerHeight-dirtLayerHeight-stoneLayerHeight)
-                    {
-                        type = BLOCK_TYPE_STONE;
-                    }
-                    else
-                    {
-                        type = BLOCK_TYPE_DEEPSLATE;
-                    }
-                    blocks.push_back({.pos=glm::vec3{x, y, z}, .type=type});
-                }
-            }
-        }
-    }
+    std::vector<Chunk> chunks;
+    chunks.push_back(genChunk(0, 0));
 
     //----------------------------------------------------------------------
 
@@ -476,7 +504,6 @@ int main()
             g_cursRelativeY = 0;
         }
 
-        // TODO: Chunks
         // TODO: Only render visible blocks:
         //  * https://community.khronos.org/t/improve-performance-render-100000-objects/67088/3
 
@@ -487,10 +514,34 @@ int main()
         std::vector<int> blockTypes{};
         blockTypes.reserve(10000);
         // Prepare block data
-        for (const auto& block : blocks)
+        for (const auto& chunk : chunks)
         {
-            blockTypes.push_back(block.type);
-            blockPositions.push_back(block.pos);
+            // TODO: Check for chunk visibility
+            {
+                for (int sliceI{}; sliceI < (int)chunk.blocks.size(); ++sliceI) // Y
+                {
+                    const auto& slice = chunk.blocks[sliceI];
+
+                    for (int rowI{}; rowI < (int)slice.size(); ++rowI) // Z
+                    {
+                        const auto& row = slice[rowI];
+
+                        for (int blockI{}; blockI < (int)row.size(); ++blockI) // X
+                        {
+                            const auto& block = row[blockI];
+
+                            // TODO: Check for block visibility
+
+                            blockTypes.push_back(block.type);
+                            blockPositions.push_back({
+                                    (chunk.chunkX*CHUNK_WIDTH_BLOCKS+blockI),
+                                    sliceI,
+                                    (chunk.chunkZ*CHUNK_WIDTH_BLOCKS+rowI)
+                            });
+                        }
+                    }
+                }
+            }
         }
 
         // Render blocks
