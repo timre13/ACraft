@@ -13,6 +13,8 @@ enum BlockType
     BLOCK_TYPE_STONE,
     BLOCK_TYPE_BEDROCK,
     BLOCK_TYPE_DEEPSLATE,
+    BLOCK_TYPE_COAL_ORE,
+    BLOCK_TYPE_DEEPSLATE_COAL_ORE,
     BLOCK_TYPE__COUNT,
 };
 
@@ -25,4 +27,6 @@ constexpr std::array<const char*, (int)BLOCK_TYPE__COUNT> blockTexturePaths = {
     "stone.png",
     "bedrock.png",
     "deepslate.png",
+    "coal_ore.png",
+    "deepslate_coal_ore.png",
 };

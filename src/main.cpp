@@ -245,6 +245,7 @@ Chunk genChunk(int chunkX, int chunkZ)
                     const int stoneLayerHeight = groundHeight*0.75f-20*(g_noiseGen.eval(x/20.0f, z/20.0f)+0.5f);
                     const int bedrockLayerHeight = 1+2*(g_noiseGen.eval(x/5.0f, z/5.0f)+0.5f);
                     const int isDirtBlob = y > 20 && g_noiseGen.eval(x/8.0f, z/8.0f, y/8.0f) >= 0.4f;
+                    const int isCoalOreBlob = g_noiseGen.eval(x/7.0f+10, z/7.0f+10, y/7.0f+10) >= 0.6f; // Coal or deepslate coal
                     if (y <= bedrockLayerHeight)
                     {
                         type = BLOCK_TYPE_BEDROCK;
@@ -259,11 +260,25 @@ Chunk genChunk(int chunkX, int chunkZ)
                     }
                     else if (y > groundHeight-grassLayerHeight-dirtLayerHeight-stoneLayerHeight)
                     {
-                        type = BLOCK_TYPE_STONE;
+                        if (isCoalOreBlob)
+                        {
+                            type = BLOCK_TYPE_COAL_ORE;
+                        }
+                        else
+                        {
+                            type = BLOCK_TYPE_STONE;
+                        }
                     }
                     else
                     {
-                        type = BLOCK_TYPE_DEEPSLATE;
+                        if (isCoalOreBlob)
+                        {
+                            type = BLOCK_TYPE_DEEPSLATE_COAL_ORE;
+                        }
+                        else
+                        {
+                            type = BLOCK_TYPE_DEEPSLATE;
+                        }
                     }
                 }
                 chunk.blocks[y][offsZ][offsX].type = type;
