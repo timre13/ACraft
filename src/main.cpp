@@ -235,7 +235,7 @@ Chunk genChunk(int chunkX, int chunkZ)
             const int groundHeight = 50+std::round((g_noiseGen.eval(x/500.0f, z/500.0f)+0.5f)*(GROUND_HEIGHT_MAX-50));
             for (int y{}; y < GROUND_HEIGHT_MAX; ++y)
             {
-                BlockType type = BLOCK_TYPE_COBBLESTONE; // TODO: Should be air by default
+                BlockType type = BLOCK_TYPE_AIR;
                 if (y <= groundHeight)
                 {
                     // TODO: More stone types
@@ -416,7 +416,8 @@ int main()
     glBindTexture(GL_TEXTURE_2D_ARRAY, blockTexArray);
     glTexImage3D(GL_TEXTURE_2D_ARRAY, 0, GL_RGBA, 16, 16, BLOCK_TYPE__COUNT, 0, GL_RGBA, GL_UNSIGNED_BYTE, NULL);
     // Fill each image layer with the data
-    for (size_t i{}; i < (size_t)BLOCK_TYPE__COUNT; ++i)
+    // Note: Skip air
+    for (size_t i{1}; i < (size_t)BLOCK_TYPE__COUNT; ++i)
     {
         std::string path = std::string(BLOCK_TEXTURE_DIR) + "/" + blockTexturePaths[i];
 
@@ -511,8 +512,8 @@ int main()
 
         std::vector<glm::vec3> blockPositions{};
         blockPositions.reserve(10000);
-        std::vector<int> blockTypes{};
-        blockTypes.reserve(10000);
+        std::vector<int> blockTexIds{};
+        blockTexIds.reserve(10000);
         // Prepare block data
         for (const auto& chunk : chunks)
         {
@@ -530,9 +531,13 @@ int main()
                         {
                             const auto& block = row[blockI];
 
+                            // Don't render air
+                            if (block.type == BLOCK_TYPE_AIR)
+                                continue;
+
                             // TODO: Check for block visibility
 
-                            blockTypes.push_back(block.type);
+                            blockTexIds.push_back(block.type);
                             blockPositions.push_back({
                                     (chunk.chunkX*CHUNK_WIDTH_BLOCKS+blockI),
                                     sliceI,
@@ -560,7 +565,7 @@ int main()
                 glBufferSubData(GL_ARRAY_BUFFER, 0, batchSize*sizeof(glm::vec3), blockPositions.data()+renderedBlocks);
 
                 glBindBuffer(GL_ARRAY_BUFFER, blockTypeInstVbo);
-                glBufferSubData(GL_ARRAY_BUFFER, 0, batchSize*sizeof(float), blockTypes.data()+renderedBlocks);
+                glBufferSubData(GL_ARRAY_BUFFER, 0, batchSize*sizeof(float), blockTexIds.data()+renderedBlocks);
 
                 glDrawArraysInstanced(GL_TRIANGLES, 0, BLOCK_VERT_COUNT, batchSize);
                 remainingBlocks -= BLOCK_POS_BATCH_SIZE_COUNT;

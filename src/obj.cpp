@@ -2,7 +2,7 @@
 #include "Logger.h"
 #include "common.h"
 
-#define MODEL_FILE_PARSER_VERBOSE 1
+#define MODEL_FILE_PARSER_VERBOSE 0
 
 std::vector<float> loadObjFile(const std::string& path)
 {

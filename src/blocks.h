@@ -6,6 +6,7 @@
 
 enum BlockType
 {
+    BLOCK_TYPE_AIR,
     BLOCK_TYPE_COBBLESTONE,
     BLOCK_TYPE_DIRT,
     BLOCK_TYPE_GRASS,
@@ -17,6 +18,7 @@ enum BlockType
 
 #define BLOCK_TEXTURE_DIR "../textures"
 constexpr std::array<const char*, (int)BLOCK_TYPE__COUNT> blockTexturePaths = {
+    "", // Air, skipped
     "cobblestone.png",
     "dirt.png",
     "grass.png",
