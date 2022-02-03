@@ -14,6 +14,8 @@ void Texture::open(const std::string& path)
 {
     Logger::log << "Loading texture: \"" << path << '"' << Logger::End;
 
+    m_path = path;
+
     stbi_set_flip_vertically_on_load(1);
 
     int width{};
@@ -53,6 +55,6 @@ Texture::~Texture()
     if (m_texId)
     {
         glDeleteSamplers(1, &m_texId);
-        Logger::dbg << "Texture " << m_texId << " deleted" << Logger::End;
+        Logger::dbg << "Texture " << m_texId << " (" << m_path << ") deleted" << Logger::End;
     }
 }

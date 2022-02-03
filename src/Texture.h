@@ -7,6 +7,7 @@ class Texture final
 {
 private:
     uint m_texId{};
+    std::string m_path;
 
 public:
     Texture() {}

@@ -70,6 +70,9 @@ static uint setupProgram(uint vertId, uint fragId)
 
 void ShaderProg::open(const std::string& vertPath, const std::string& fragPath)
 {
+    m_vertPath = vertPath;
+    m_fragPath = fragPath;
+
     Logger::log << "Loading vertex shader: " << vertPath << Logger::End;
     uint vertId = setupShader(vertPath, true);
     Logger::log << "Loaded vertex shader (id=" << vertId << ")" << Logger::End;
@@ -104,5 +107,7 @@ void ShaderProg::setUniform(const char* name, const glm::mat4& x)
 ShaderProg::~ShaderProg()
 {
     glDeleteProgram(m_progId);
-    Logger::dbg << "Shader program " << m_progId << " deleted" << Logger::End;
+    Logger::dbg << "Shader program " << m_progId << " deleted. "
+        << "\n\tVertex shader: " << m_vertPath << ","
+        << "\n\tFragment shader: " << m_fragPath << Logger::End;
 }

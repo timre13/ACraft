@@ -10,6 +10,8 @@ class ShaderProg
 {
 private:
     uint m_progId{};
+    std::string m_vertPath;
+    std::string m_fragPath;
 
     static uint s_boundProgId;
 
