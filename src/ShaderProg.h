@@ -16,7 +16,9 @@ private:
     int getUniformLocation(const char* name) const;
 
 public:
-    ShaderProg(const std::string& vertPath, const std::string& fragPath);
+    ShaderProg() {}
+
+    void open(const std::string& vertPath, const std::string& fragPath);
 
     void bind();
 

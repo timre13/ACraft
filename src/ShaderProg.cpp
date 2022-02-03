@@ -68,7 +68,7 @@ static uint setupProgram(uint vertId, uint fragId)
     }
 }
 
-ShaderProg::ShaderProg(const std::string& vertPath, const std::string& fragPath)
+void ShaderProg::open(const std::string& vertPath, const std::string& fragPath)
 {
     Logger::log << "Loading vertex shader: " << vertPath << Logger::End;
     uint vertId = setupShader(vertPath, true);

@@ -3,11 +3,10 @@
 #include "ShaderProg.h"
 #include "Texture.h"
 #include "Camera.h"
-#include "blocks.h"
+#include "Block.h"
 #include "obj.h"
 #include "callbacks.h"
 #include "../deps/OpenSimplexNoise/OpenSimplexNoise/OpenSimplexNoise.h"
-#include "../deps/stb/stb_image.h"
 #include <cmath>
 #include <iomanip>
 #include <vector>
@@ -20,9 +19,6 @@
 #define CAM_SPEED 0.1f
 #define CAM_FOV_DEG 45.0f
 
-// Number of blocks renderd at once
-#define BLOCK_POS_BATCH_SIZE_COUNT 1024*1024*10
-
 #define GROUND_HEIGHT_MAX 384
 
 #define CHUNK_WIDTH_BLOCKS 16
@@ -30,66 +26,10 @@
 bool g_isWireframeMode = false;
 int g_cursRelativeX = 0;
 int g_cursRelativeY = 0;
-auto g_camera = Camera{(float)WIN_W/WIN_H, CAM_FOV_DEG};
-auto g_noiseGen = OpenSimplexNoise::Noise{std::time(nullptr)};
-
 bool g_isDebugCam = false;
 
-
-struct Block
-{
-    BlockType type{};
-};
-
-#define VERT_ATTRIB_INDEX_MESH_COORDS 0
-#define VERT_ATTRIB_INDEX_TEX_COORDS 1
-#define VALS_PER_VERT 5
-#define VERT_ATTRIB_INDEX_INST_POS 2
-#define VERT_ATTRIB_INDEX_INST_TYPE 3
-
-#define BLOCK_VERT_COUNT 36
-#define BLOCK_VERT_DATA_LEN (BLOCK_VERT_COUNT * VALS_PER_VERT)
-static constexpr float blockVertices[BLOCK_VERT_DATA_LEN] = {
-    //       Mesh              Texture
-    // X      Y      Z          X     Y
-    -1.0f,  1.0f, -1.0f, /**/ 0.0f,  1.0f,
-     1.0f,  1.0f,  1.0f, /**/ 1.0f,  0.0f,
-     1.0f,  1.0f, -1.0f, /**/ 1.0f,  1.0f,
-     1.0f,  1.0f,  1.0f, /**/ 1.0f,  1.0f,
-    -1.0f, -1.0f,  1.0f, /**/ 0.0f,  0.0f,
-     1.0f, -1.0f,  1.0f, /**/ 1.0f,  0.0f,
-    -1.0f,  1.0f,  1.0f, /**/ 0.0f,  1.0f,
-    -1.0f, -1.0f, -1.0f, /**/ 1.0f,  0.0f,
-    -1.0f, -1.0f,  1.0f, /**/ 0.0f,  0.0f,
-     1.0f, -1.0f, -1.0f, /**/ 1.0f,  1.0f,
-    -1.0f, -1.0f,  1.0f, /**/ 0.0f,  0.0f,
-    -1.0f, -1.0f, -1.0f, /**/ 0.0f,  1.0f,
-     1.0f,  1.0f, -1.0f, /**/ 1.0f,  1.0f,
-     1.0f, -1.0f,  1.0f, /**/ 0.0f,  0.0f,
-     1.0f, -1.0f, -1.0f, /**/ 1.0f,  0.0f,
-    -1.0f,  1.0f, -1.0f, /**/ 0.0f,  1.0f,
-     1.0f, -1.0f, -1.0f, /**/ 1.0f,  0.0f,
-    -1.0f, -1.0f, -1.0f, /**/ 0.0f,  0.0f,
-    -1.0f,  1.0f, -1.0f, /**/ 0.0f,  1.0f,
-    -1.0f,  1.0f,  1.0f, /**/ 0.0f,  0.0f,
-     1.0f,  1.0f,  1.0f, /**/ 1.0f,  0.0f,
-     1.0f,  1.0f,  1.0f, /**/ 1.0f,  1.0f,
-    -1.0f,  1.0f,  1.0f, /**/ 0.0f,  1.0f,
-    -1.0f, -1.0f,  1.0f, /**/ 0.0f,  0.0f,
-    -1.0f,  1.0f,  1.0f, /**/ 0.0f,  1.0f,
-    -1.0f,  1.0f, -1.0f, /**/ 1.0f,  1.0f,
-    -1.0f, -1.0f, -1.0f, /**/ 1.0f,  0.0f,
-     1.0f, -1.0f, -1.0f, /**/ 1.0f,  1.0f,
-     1.0f, -1.0f,  1.0f, /**/ 1.0f,  0.0f,
-    -1.0f, -1.0f,  1.0f, /**/ 0.0f,  0.0f,
-     1.0f,  1.0f, -1.0f, /**/ 1.0f,  1.0f,
-     1.0f,  1.0f,  1.0f, /**/ 0.0f,  1.0f,
-     1.0f, -1.0f,  1.0f, /**/ 0.0f,  0.0f,
-    -1.0f,  1.0f, -1.0f, /**/ 0.0f,  1.0f,
-     1.0f,  1.0f, -1.0f, /**/ 1.0f,  1.0f,
-     1.0f, -1.0f, -1.0f, /**/ 1.0f,  0.0f,
-};
-#define BLOCK_MODEL_SCALE 0.5f
+auto g_camera = Camera{(float)WIN_W/WIN_H, CAM_FOV_DEG};
+auto g_noiseGen = OpenSimplexNoise::Noise{std::time(nullptr)};
 
 struct Chunk
 {
@@ -222,61 +162,13 @@ int main()
 
     //----------------------------------------------------------------------
 
-    ShaderProg blockShaderProg = ShaderProg{"../src/shaders/block_inst.vert.glsl", "../src/shaders/block_inst.frag.glsl"};
-    ShaderProg camModelShaderProg = ShaderProg{"../src/shaders/cam_model.vert.glsl", "../src/shaders/cam_model.frag.glsl"};
+    ShaderProg camModelShaderProg{};
+    camModelShaderProg.open("../src/shaders/cam_model.vert.glsl", "../src/shaders/cam_model.frag.glsl");
 
     //----------------------------------------------------------------------
 
     std::vector<Chunk> chunks;
     chunks.push_back(genChunk(0, 0));
-
-    //----------------------------------------------------------------------
-
-    Logger::dbg << "Setting up block buffers" << Logger::End;
-
-    uint blockVao{};
-    glGenVertexArrays(1, &blockVao);
-    glBindVertexArray(blockVao);
-
-    uint blockVbo{};
-    uint blockPosInstVbo{};
-    uint blockTypeInstVbo{};
-    {
-        glGenBuffers(1, &blockVbo);
-
-        glBindBuffer(GL_ARRAY_BUFFER, blockVbo);
-        glBufferData(GL_ARRAY_BUFFER, BLOCK_VERT_DATA_LEN*sizeof(float), &blockVertices, GL_STATIC_DRAW);
-
-        glVertexAttribPointer(VERT_ATTRIB_INDEX_MESH_COORDS, 3, GL_FLOAT, GL_FALSE, VALS_PER_VERT*sizeof(float), (void*)(0));
-        glEnableVertexAttribArray(VERT_ATTRIB_INDEX_MESH_COORDS);
-
-        glVertexAttribPointer(VERT_ATTRIB_INDEX_TEX_COORDS, 2, GL_FLOAT, GL_FALSE, VALS_PER_VERT*sizeof(float), (void*)(3*sizeof(float)));
-        glEnableVertexAttribArray(VERT_ATTRIB_INDEX_TEX_COORDS);
-
-        //----------------------------------------------------------------------
-
-        glGenBuffers(1, &blockPosInstVbo);
-
-        glBindBuffer(GL_ARRAY_BUFFER, blockPosInstVbo);
-        glBufferData(GL_ARRAY_BUFFER, BLOCK_POS_BATCH_SIZE_COUNT*sizeof(glm::vec3), nullptr, GL_DYNAMIC_DRAW);
-
-        glVertexAttribPointer(VERT_ATTRIB_INDEX_INST_POS, 4, GL_FLOAT, GL_FALSE, sizeof(glm::vec3), (void*)0);
-        glEnableVertexAttribArray(VERT_ATTRIB_INDEX_INST_POS);
-        glVertexAttribDivisor(VERT_ATTRIB_INDEX_INST_POS, 1); // Instanced attribute
-
-
-        glGenBuffers(1, &blockTypeInstVbo);
-
-        glBindBuffer(GL_ARRAY_BUFFER, blockTypeInstVbo);
-        glBufferData(GL_ARRAY_BUFFER, BLOCK_POS_BATCH_SIZE_COUNT*sizeof(float), nullptr, GL_DYNAMIC_DRAW);
-
-        glVertexAttribPointer(VERT_ATTRIB_INDEX_INST_TYPE, 1, GL_FLOAT, GL_FALSE, 0, 0);
-        glEnableVertexAttribArray(VERT_ATTRIB_INDEX_INST_TYPE);
-        glVertexAttribDivisor(VERT_ATTRIB_INDEX_INST_TYPE, 1); // Instanced attribute
-    }
-    glBindVertexArray(0);
-
-    Logger::dbg << "Set up block buffers" << Logger::End;
 
     //----------------------------------------------------------------------
 
@@ -306,36 +198,6 @@ int main()
     Logger::dbg << "Set up camera model buffers" << Logger::End;
 
     //----------------------------------------------------------------------
-
-    int maxArrayTextureLayers{};
-    glGetIntegerv(GL_MAX_ARRAY_TEXTURE_LAYERS, &maxArrayTextureLayers);
-    Logger::dbg << "GL_MAX_ARRAY_TEXTURE_LAYERS = " << maxArrayTextureLayers << Logger::End;
-    assert(BLOCK_TYPE__COUNT <= maxArrayTextureLayers); // Check if we have space to store all the textures in a texture array
-
-    uint blockTexArray{};
-    glGenTextures(1, &blockTexArray);
-    glBindTexture(GL_TEXTURE_2D_ARRAY, blockTexArray);
-    glTexImage3D(GL_TEXTURE_2D_ARRAY, 0, GL_RGBA, 16, 16, BLOCK_TYPE__COUNT, 0, GL_RGBA, GL_UNSIGNED_BYTE, NULL);
-    // Fill each image layer with the data
-    // Note: Skip air
-    for (size_t i{1}; i < (size_t)BLOCK_TYPE__COUNT; ++i)
-    {
-        std::string path = std::string(BLOCK_TEXTURE_DIR) + "/" + blockTexturePaths[i];
-
-        int width{};
-        int height{};
-        int _{};
-        unsigned char* data = stbi_load(path.c_str(), &width, &height, &_, 4);
-        assert(width == 16);
-        assert(height == 16);
-
-        glTexSubImage3D(GL_TEXTURE_2D_ARRAY, 0, 0, 0, i, 16, 16, 1, GL_RGBA, GL_UNSIGNED_BYTE, data);
-
-        stbi_image_free(data);
-    }
-    glGenerateMipmap(GL_TEXTURE_2D_ARRAY);
-    glTexParameteri(GL_TEXTURE_2D_ARRAY, GL_TEXTURE_MIN_FILTER, GL_NEAREST_MIPMAP_LINEAR);
-    glTexParameteri(GL_TEXTURE_2D_ARRAY, GL_TEXTURE_MAG_FILTER, GL_NEAREST);
 
     Texture placeholderTex = Texture{"../textures/placeholder.png"};
 
@@ -450,29 +312,7 @@ int main()
             }
         }
 
-        // Render blocks
-        {
-            glBindVertexArray(blockVao);
-            blockShaderProg.bind();
-            g_camera.updateShaderUniforms(blockShaderProg);
-
-            int renderedBlocks{};
-            int remainingBlocks = blockPositions.size();
-            while (remainingBlocks > 0)
-            {
-                const int batchSize = std::min(BLOCK_POS_BATCH_SIZE_COUNT, remainingBlocks);
-
-                glBindBuffer(GL_ARRAY_BUFFER, blockPosInstVbo);
-                glBufferSubData(GL_ARRAY_BUFFER, 0, batchSize*sizeof(glm::vec3), blockPositions.data()+renderedBlocks);
-
-                glBindBuffer(GL_ARRAY_BUFFER, blockTypeInstVbo);
-                glBufferSubData(GL_ARRAY_BUFFER, 0, batchSize*sizeof(float), blockTexIds.data()+renderedBlocks);
-
-                glDrawArraysInstanced(GL_TRIANGLES, 0, BLOCK_VERT_COUNT, batchSize);
-                remainingBlocks -= BLOCK_POS_BATCH_SIZE_COUNT;
-                renderedBlocks += BLOCK_POS_BATCH_SIZE_COUNT;
-            }
-        }
+        BlockStuffHandler::get().renderBlocks(blockPositions, blockTexIds);
 
         //------------------- Debug camera model rendering ---------------------
 
@@ -498,10 +338,6 @@ int main()
     }
 
     Logger::log << "Cleaning up" << Logger::End;
-    glDeleteTextures(1, &blockTexArray);
-    glDeleteBuffers(1, &blockVbo);
-    glDeleteBuffers(1, &blockPosInstVbo);
-    glDeleteVertexArrays(1, &blockVao);
     glfwDestroyWindow(window);
     glfwTerminate();
     return 0;
