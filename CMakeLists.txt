@@ -34,5 +34,6 @@ add_executable(acraft
     src/Texture.cpp
     src/Camera.cpp
     src/obj.cpp
+    src/callbacks.cpp
     deps/OpenSimplexNoise/OpenSimplexNoise/OpenSimplexNoise.cpp
 )
