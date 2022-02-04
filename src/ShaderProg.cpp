@@ -3,6 +3,11 @@
 
 uint ShaderProg::s_boundProgId = -1;
 
+ShaderProg::ShaderProg(const std::string& vertPath, const std::string& fragPath)
+{
+    open(vertPath, fragPath);
+}
+
 int ShaderProg::getUniformLocation(const char* name) const
 {
     int loc = glGetUniformLocation(m_progId, name);

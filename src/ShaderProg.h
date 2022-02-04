@@ -19,6 +19,7 @@ private:
 
 public:
     ShaderProg() {}
+    ShaderProg(const std::string& vertPath, const std::string& fragPath);
 
     void open(const std::string& vertPath, const std::string& fragPath);
 

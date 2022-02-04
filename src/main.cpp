@@ -162,8 +162,7 @@ int main()
 
     //----------------------------------------------------------------------
 
-    ShaderProg camModelShaderProg{};
-    camModelShaderProg.open("../src/shaders/cam_model.vert.glsl", "../src/shaders/cam_model.frag.glsl");
+    ShaderProg camModelShaderProg = ShaderProg{"../src/shaders/cam_model.vert.glsl", "../src/shaders/cam_model.frag.glsl"};
 
     //----------------------------------------------------------------------
 
