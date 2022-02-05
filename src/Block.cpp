@@ -8,20 +8,13 @@
 
 extern Camera g_camera;
 
-uint BlockStuffHandler::s_texArray = 0;
-uint BlockStuffHandler::s_vao = 0;
-uint BlockStuffHandler::s_vbo = 0;
-uint BlockStuffHandler::s_posInstVbo = 0;
-uint BlockStuffHandler::s_typeInstVbo = 0;
-ShaderProg BlockStuffHandler::s_blockShaderProg = ShaderProg();
-
 BlockStuffHandler::BlockStuffHandler()
 {
     Logger::log << "Setting up block stuff" << Logger::End;
 
-    s_blockShaderProg.open(
+    m_blockShaderProg = ShaderProg{
             "../src/shaders/block_inst.vert.glsl",
-            "../src/shaders/block_inst.frag.glsl");
+            "../src/shaders/block_inst.frag.glsl"};
     loadBlockTextures();
     setupBlockBuffers();
 
@@ -38,8 +31,8 @@ void BlockStuffHandler::loadBlockTextures()
     // Check if we have space to store all the textures in a texture array
     assert(BLOCK_TYPE__COUNT <= maxArrayTextureLayers);
 
-    glGenTextures(1, &s_texArray);
-    glBindTexture(GL_TEXTURE_2D_ARRAY, s_texArray);
+    glGenTextures(1, &m_texArray);
+    glBindTexture(GL_TEXTURE_2D_ARRAY, m_texArray);
     glTexImage3D(GL_TEXTURE_2D_ARRAY, 0, GL_RGBA, 16, 16, BLOCK_TYPE__COUNT, 0, GL_RGBA, GL_UNSIGNED_BYTE, NULL);
     // Fill each image layer with the data
     // Note: Skip air
@@ -69,13 +62,13 @@ void BlockStuffHandler::setupBlockBuffers()
 {
     Logger::dbg << "Setting up block VRAM buffers" << Logger::End;
 
-    glGenVertexArrays(1, &s_vao);
-    glBindVertexArray(s_vao);
+    glGenVertexArrays(1, &m_vao);
+    glBindVertexArray(m_vao);
 
     {
-        glGenBuffers(1, &s_vbo);
+        glGenBuffers(1, &m_vbo);
 
-        glBindBuffer(GL_ARRAY_BUFFER, s_vbo);
+        glBindBuffer(GL_ARRAY_BUFFER, m_vbo);
         glBufferData(GL_ARRAY_BUFFER, BLOCK_VERT_DATA_LEN*sizeof(float), &blockVertices, GL_STATIC_DRAW);
 
         glVertexAttribPointer(VERT_ATTRIB_INDEX_MESH_COORDS, 3, GL_FLOAT, GL_FALSE, VALS_PER_VERT*sizeof(float), (void*)(0));
@@ -86,9 +79,9 @@ void BlockStuffHandler::setupBlockBuffers()
 
         //----------------------------------------------------------------------
 
-        glGenBuffers(1, &s_posInstVbo);
+        glGenBuffers(1, &m_posInstVbo);
 
-        glBindBuffer(GL_ARRAY_BUFFER, s_posInstVbo);
+        glBindBuffer(GL_ARRAY_BUFFER, m_posInstVbo);
         glBufferData(GL_ARRAY_BUFFER, BLOCK_POS_BATCH_SIZE_COUNT*sizeof(glm::vec3), nullptr, GL_DYNAMIC_DRAW);
 
         glVertexAttribPointer(VERT_ATTRIB_INDEX_INST_POS, 4, GL_FLOAT, GL_FALSE, sizeof(glm::vec3), (void*)0);
@@ -96,9 +89,9 @@ void BlockStuffHandler::setupBlockBuffers()
         glVertexAttribDivisor(VERT_ATTRIB_INDEX_INST_POS, 1); // Instanced attribute
 
 
-        glGenBuffers(1, &s_typeInstVbo);
+        glGenBuffers(1, &m_typeInstVbo);
 
-        glBindBuffer(GL_ARRAY_BUFFER, s_typeInstVbo);
+        glBindBuffer(GL_ARRAY_BUFFER, m_typeInstVbo);
         glBufferData(GL_ARRAY_BUFFER, BLOCK_POS_BATCH_SIZE_COUNT*sizeof(float), nullptr, GL_DYNAMIC_DRAW);
 
         glVertexAttribPointer(VERT_ATTRIB_INDEX_INST_TYPE, 1, GL_FLOAT, GL_FALSE, 0, 0);
@@ -112,9 +105,9 @@ void BlockStuffHandler::setupBlockBuffers()
 
 void BlockStuffHandler::renderBlocks(std::vector<glm::vec3>& blockPositions, std::vector<int>& blockTexIds)
 {
-    glBindVertexArray(s_vao);
-    s_blockShaderProg.bind();
-    g_camera.updateShaderUniforms(s_blockShaderProg);
+    glBindVertexArray(m_vao);
+    m_blockShaderProg.bind();
+    g_camera.updateShaderUniforms(m_blockShaderProg);
 
     int renderedBlocks{};
     int remainingBlocks = blockPositions.size();
@@ -122,10 +115,10 @@ void BlockStuffHandler::renderBlocks(std::vector<glm::vec3>& blockPositions, std
     {
         const int batchSize = std::min(BLOCK_POS_BATCH_SIZE_COUNT, remainingBlocks);
 
-        glBindBuffer(GL_ARRAY_BUFFER, s_posInstVbo);
+        glBindBuffer(GL_ARRAY_BUFFER, m_posInstVbo);
         glBufferSubData(GL_ARRAY_BUFFER, 0, batchSize*sizeof(glm::vec3), blockPositions.data()+renderedBlocks);
 
-        glBindBuffer(GL_ARRAY_BUFFER, s_typeInstVbo);
+        glBindBuffer(GL_ARRAY_BUFFER, m_typeInstVbo);
         glBufferSubData(GL_ARRAY_BUFFER, 0, batchSize*sizeof(float), blockTexIds.data()+renderedBlocks);
 
         glDrawArraysInstanced(GL_TRIANGLES, 0, BLOCK_VERT_COUNT, batchSize);
@@ -136,10 +129,10 @@ void BlockStuffHandler::renderBlocks(std::vector<glm::vec3>& blockPositions, std
 
 BlockStuffHandler::~BlockStuffHandler()
 {
-    glDeleteTextures(1, &s_texArray);
-    glDeleteBuffers(1, &s_vbo);
-    glDeleteBuffers(1, &s_posInstVbo);
-    glDeleteBuffers(1, &s_typeInstVbo);
-    glDeleteVertexArrays(1, &s_vao);
+    glDeleteTextures(1, &m_texArray);
+    glDeleteBuffers(1, &m_vbo);
+    glDeleteBuffers(1, &m_posInstVbo);
+    glDeleteBuffers(1, &m_typeInstVbo);
+    glDeleteVertexArrays(1, &m_vao);
     Logger::dbg << "Cleaned up block stuff" << Logger::End;
 }

@@ -10,8 +10,16 @@ private:
     std::string m_path;
 
 public:
-    Texture() {}
+    Texture() = default;
     Texture(const std::string& path);
+
+    // Disable copying
+    Texture(const Texture&) = delete;
+    Texture& operator=(const Texture&) = delete;
+
+    // Implement moving
+    Texture(Texture&& temp) noexcept;
+    Texture& operator=(Texture&& temp) noexcept;
 
     void open(const std::string& path);
 

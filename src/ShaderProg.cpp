@@ -8,6 +8,36 @@ ShaderProg::ShaderProg(const std::string& vertPath, const std::string& fragPath)
     open(vertPath, fragPath);
 }
 
+ShaderProg::ShaderProg(ShaderProg&& temp) noexcept
+{
+    if (&temp == this)
+        return;
+
+    m_progId = temp.m_progId;
+    m_vertPath = temp.m_vertPath;
+    m_fragPath = temp.m_fragPath;
+
+    temp.m_progId = 0;
+    temp.m_vertPath = "";
+    temp.m_fragPath = "";
+}
+
+ShaderProg& ShaderProg::operator=(ShaderProg&& temp) noexcept
+{
+    if (&temp == this)
+        return *this;
+
+    m_progId = temp.m_progId;
+    m_vertPath = temp.m_vertPath;
+    m_fragPath = temp.m_fragPath;
+
+    temp.m_progId = 0;
+    temp.m_vertPath = "";
+    temp.m_fragPath = "";
+
+    return *this;
+}
+
 int ShaderProg::getUniformLocation(const char* name) const
 {
     int loc = glGetUniformLocation(m_progId, name);

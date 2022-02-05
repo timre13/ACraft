@@ -6,7 +6,7 @@
 #include <glm/gtc/type_ptr.hpp>
 #include <string>
 
-class ShaderProg
+class ShaderProg final
 {
 private:
     uint m_progId{};
@@ -18,8 +18,15 @@ private:
     int getUniformLocation(const char* name) const;
 
 public:
-    ShaderProg() {}
+    ShaderProg() = default;
     ShaderProg(const std::string& vertPath, const std::string& fragPath);
+    // Disable copying
+    ShaderProg(const ShaderProg&) = delete;
+    ShaderProg& operator=(const ShaderProg&) = delete;
+
+    // Implement moving
+    ShaderProg(ShaderProg&& temp) noexcept;
+    ShaderProg& operator=(ShaderProg&& temp) noexcept;
 
     void open(const std::string& vertPath, const std::string& fragPath);
 

@@ -10,6 +10,33 @@ Texture::Texture(const std::string& path)
     open(path);
 }
 
+
+Texture::Texture(Texture&& temp) noexcept
+{
+    if (&temp == this)
+        return;
+
+    m_texId = temp.m_texId;
+    m_path = temp.m_path;
+
+    temp.m_texId = 0;
+    temp.m_path = "";
+}
+
+Texture& Texture::operator=(Texture&& temp) noexcept
+{
+    if (&temp == this)
+        return *this;
+
+    m_texId = temp.m_texId;
+    m_path = temp.m_path;
+
+    temp.m_texId = 0;
+    temp.m_path = "";
+
+    return *this;
+}
+
 void Texture::open(const std::string& path)
 {
     Logger::log << "Loading texture: \"" << path << '"' << Logger::End;

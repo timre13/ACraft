@@ -45,12 +45,12 @@ struct Block
 class BlockStuffHandler final
 {
 private:
-    static uint s_texArray;
-    static uint s_vao;
-    static uint s_vbo;
-    static uint s_posInstVbo;
-    static uint s_typeInstVbo;
-    static ShaderProg s_blockShaderProg;
+    uint m_texArray;
+    uint m_vao;
+    uint m_vbo;
+    uint m_posInstVbo;
+    uint m_typeInstVbo;
+    ShaderProg m_blockShaderProg;
 
     /*
      * Called by `get()` when it is called first time.
@@ -60,13 +60,18 @@ private:
     void setupBlockBuffers();
 
 public:
+    BlockStuffHandler(const BlockStuffHandler&) = delete;
+    BlockStuffHandler& operator=(const BlockStuffHandler&) = delete;
+    BlockStuffHandler(BlockStuffHandler&&) = delete;
+    BlockStuffHandler& operator=(BlockStuffHandler&&) = delete;
+
     static inline BlockStuffHandler& get()
     {
         static BlockStuffHandler instance;
         return instance;
     }
 
-    static void renderBlocks(std::vector<glm::vec3>& blockPositions, std::vector<int>& blockTexIds);
+    void renderBlocks(std::vector<glm::vec3>& blockPositions, std::vector<int>& blockTexIds);
 
     ~BlockStuffHandler();
 };
