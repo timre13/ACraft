@@ -59,11 +59,14 @@ void GLAPIENTRY _glMsgCb(
     glGetIntegerv(GL_TEXTURE_BINDING_2D, &tex2dBinding);
     int tex2dArrBinding{};
     glGetIntegerv(GL_TEXTURE_BINDING_2D_ARRAY, &tex2dArrBinding);
+    int currShProg{};
+    glGetIntegerv(GL_CURRENT_PROGRAM, &currShProg);
     Logger::dbg << "State: "
         << "\n\tBound VAO              = " << vertexArrayBinding
         << "\n\tBound VBO              = " << arrayBufferBinding
         << "\n\tBound 2D Texture       = " << tex2dBinding
         << "\n\tBound 2D Texture Array = " << tex2dArrBinding
+        << "\n\tCurrent Shader Program = " << currShProg
         << Logger::End;
 }
 
