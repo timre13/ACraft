@@ -8,6 +8,7 @@ set(CMAKE_CXX_STANDARD 20)
 set(CMAKE_CXX_STANDARD_REQUIRED true)
 
 set(CMAKE_EXPORT_COMPILE_COMMANDS true)
+set(CMAKE_CXX_CLANG_TIDY "clang-tidy")
 
 link_libraries(GLEW GL glfw)
 
