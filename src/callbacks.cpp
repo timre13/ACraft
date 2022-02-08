@@ -114,6 +114,7 @@ void toggleWireframeMode()
 void toggleDebugCam()
 {
     g_isDebugCam = !g_isDebugCam;
+    g_camera.onDebugModeSwitch();
 }
 
 void _mouseMoveCb(GLFWwindow*, double x, double y)

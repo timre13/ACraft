@@ -267,15 +267,15 @@ int main()
             g_cursRelativeY = 0;
         }
 
-        // TODO: Only render visible blocks:
+        // TODO: More culling
         //  * https://community.khronos.org/t/improve-performance-render-100000-objects/67088/3
 
         //------------------------ Block rendering -----------------------------
 
         std::vector<glm::vec3> blockPositions{};
-        blockPositions.reserve(10000);
+        blockPositions.reserve(50000);
         std::vector<int> blockTexIds{};
-        blockTexIds.reserve(10000);
+        blockTexIds.reserve(50000);
         // Prepare block data
         for (const auto& chunk : chunks)
         {
@@ -297,20 +297,33 @@ int main()
                             if (block.type == BLOCK_TYPE_AIR)
                                 continue;
 
-                            // TODO: Check for block visibility
+                            const float x = chunk.chunkX*CHUNK_WIDTH_BLOCKS+blockI;
+                            const float y = sliceI;
+                            const float z = chunk.chunkZ*CHUNK_WIDTH_BLOCKS+rowI;
+
+                            const bool isVisible = g_camera.isPointVisible({x*2, y*2, z*2});
+
+                            // Don't render not visible blocks
+                            if (!isVisible)
+                                continue;
 
                             blockTexIds.push_back(block.type);
-                            blockPositions.push_back({
-                                    (chunk.chunkX*CHUNK_WIDTH_BLOCKS+blockI),
-                                    sliceI,
-                                    (chunk.chunkZ*CHUNK_WIDTH_BLOCKS+rowI)
-                            });
+                            blockPositions.emplace_back(x, y, z);
                         }
                     }
                 }
             }
         }
 
+        //Logger::log << "Rendering " << blockPositions.size() << " objects" << Logger::End;
+
+        glfwSetWindowTitle(window, ("ACraft "
+                "| Camera: {"
+                +std::to_string(g_camera.getPos().x)+", "
+                +std::to_string(g_camera.getPos().y)+", "
+                +std::to_string(g_camera.getPos().z)+"} "
+                "| Objs. rendered: "
+                +std::to_string(blockPositions.size())).c_str());
         BlockStuffHandler::get().renderBlocks(blockPositions, blockTexIds);
 
         //------------------- Debug camera model rendering ---------------------
@@ -326,7 +339,7 @@ int main()
             glBindVertexArray(camModelVao);
             camModelShaderProg.bind();
             camModelShaderProg.setUniform("inModelMat", camModelMat);
-            g_camera.updateShaderUniforms(camModelShaderProg);
+            g_camera.updateShaderUniformsIfNeeded(camModelShaderProg);
             placeholderTex.bind();
             glDrawArrays(GL_TRIANGLES, 0, camModelVertices.size()/VALS_PER_VERT);
         }

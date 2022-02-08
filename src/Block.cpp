@@ -107,7 +107,7 @@ void BlockStuffHandler::renderBlocks(std::vector<glm::vec3>& blockPositions, std
 {
     glBindVertexArray(m_vao);
     m_blockShaderProg.bind();
-    g_camera.updateShaderUniforms(m_blockShaderProg);
+    g_camera.updateShaderUniformsIfNeeded(m_blockShaderProg);
 
     int renderedBlocks{};
     int remainingBlocks = blockPositions.size();
