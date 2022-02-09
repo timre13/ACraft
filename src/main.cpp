@@ -205,12 +205,16 @@ int main()
     g_camera.setPos({0.0f, 5.0f, 0.0f});
 
     double lastTime{};
+    double fps{};
     glfwSwapInterval(1); // Force V-Sync
     while (!glfwWindowShouldClose(window))
     {
         const double currTime = glfwGetTime()*1000;
         const double deltaTime = currTime - lastTime;
         lastTime = currTime;
+
+        // Calculate FPS and average with previous value for less jitter
+        fps = (fps + 1000/deltaTime) / 2;
 
         glfwPollEvents();
 
@@ -318,12 +322,14 @@ int main()
         //Logger::log << "Rendering " << blockPositions.size() << " objects" << Logger::End;
 
         glfwSetWindowTitle(window, ("ACraft "
-                "| Camera: {"
-                +std::to_string(g_camera.getPos().x)+", "
-                +std::to_string(g_camera.getPos().y)+", "
-                +std::to_string(g_camera.getPos().z)+"} "
-                "| Objs. rendered: "
-                +std::to_string(blockPositions.size())).c_str());
+                    "| FPS: "
+                    +std::to_string((int)std::round(fps))
+                    +"| Camera: {"
+                    +std::to_string(g_camera.getPos().x)+", "
+                    +std::to_string(g_camera.getPos().y)+", "
+                    +std::to_string(g_camera.getPos().z)+"} "
+                    "| Objs. rendered: "
+                    +std::to_string(blockPositions.size())).c_str());
         BlockStuffHandler::get().renderBlocks(blockPositions, blockTexIds);
 
         //------------------- Debug camera model rendering ---------------------
